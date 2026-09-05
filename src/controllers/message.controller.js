@@ -1,0 +1,246 @@
+const db = require('../config/db');
+const { AppError } = require('../middleware/errorHandler');
+
+/**
+ * Helper: verify the current user is a participant in the given match.
+ * Returns the match row or throws.
+ */
+async function verifyMatchParticipant(matchId, userId) {
+  const { rows } = await db.query(
+    `SELECT * FROM matches WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
+    [matchId, userId]
+  );
+
+  if (rows.length === 0) {
+    throw new AppError('Match not found or you are not a participant.', 404);
+  }
+
+  return rows[0];
+}
+
+/**
+ * GET /api/messages/:matchId
+ * Get message history for a match, paginated.
+ * Query params: ?limit=50&before=<messageId>
+ */
+async function getMessages(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const before = req.query.before; // cursor-based pagination
+
+    // Verify participation
+    await verifyMatchParticipant(matchId, userId);
+
+    let query;
+    let params;
+
+    if (before) {
+      // Get the created_at of the cursor message
+      const { rows: cursorRows } = await db.query(
+        `SELECT created_at FROM messages WHERE id = $1`,
+        [before]
+      );
+
+      if (cursorRows.length === 0) {
+        throw new AppError('Invalid pagination cursor.', 400);
+      }
+
+      query = `SELECT id, match_id, sender_id, content, created_at
+               FROM messages
+               WHERE match_id = $1 AND created_at < $2
+               ORDER BY created_at DESC
+               LIMIT $3`;
+      params = [matchId, cursorRows[0].created_at, limit];
+    } else {
+      query = `SELECT id, match_id, sender_id, content, created_at
+               FROM messages
+               WHERE match_id = $1
+               ORDER BY created_at DESC
+               LIMIT $2`;
+      params = [matchId, limit];
+    }
+
+    // Fetch match info & partner profile info
+    const { rows: matchRows } = await db.query(
+      `SELECT
+         m.id AS match_id,
+         m.is_unlocked,
+         p.name AS partner_name,
+         p.photos AS partner_photos
+       FROM matches m
+       JOIN profiles p ON p.user_id = CASE
+         WHEN m.user1_id = $1 THEN m.user2_id
+         ELSE m.user1_id
+       END
+       WHERE m.id = $2`,
+      [userId, matchId]
+    );
+
+    const matchDetails = matchRows[0] || {};
+    let partnerPhoto = null;
+    if (matchDetails.partner_photos) {
+      try {
+        const photos = JSON.parse(matchDetails.partner_photos);
+        partnerPhoto = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
+      } catch (e) {
+        partnerPhoto = null;
+      }
+    }
+
+    const { rows: userRows } = await db.query(
+      `SELECT subscription_status, subscription_expiry FROM users WHERE id = $1`,
+      [userId]
+    );
+    const user = userRows[0];
+    const isSubscribed = Boolean(
+      user &&
+      user.subscription_status === 'active' &&
+      user.subscription_expiry &&
+      new Date(user.subscription_expiry) > new Date()
+    );
+
+    const { rows: messages } = await db.query(query, params);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        match: {
+          id: matchId,
+          partner_name: matchDetails.partner_name || 'Campus Match',
+          partner_photo: partnerPhoto,
+          is_unlocked: Boolean(matchDetails.is_unlocked || isSubscribed),
+        },
+        messages: messages.reverse(), // Return in chronological order
+        has_more: messages.length === limit,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/messages/:matchId
+ * Send a message in a match.
+ *
+ * Paywall logic (server-side enforced):
+ * 1. If the match is already unlocked → allow freely
+ * 2. If the user has an active subscription → allow and mark match as unlocked
+ * 3. If the user has sent < 2 messages in this match → allow (free tier)
+ * 4. Otherwise → reject with 402 + paywall flag
+ */
+async function sendMessage(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+    const { content } = req.body;
+
+    // Verify participation
+    const match = await verifyMatchParticipant(matchId, userId);
+
+    // ── Paywall check ──
+    if (!match.is_unlocked) {
+      // Check if user has active subscription
+      const { rows: userRows } = await db.query(
+        `SELECT subscription_status, subscription_expiry FROM users WHERE id = $1`,
+        [userId]
+      );
+
+      const user = userRows[0];
+      const hasActiveSubscription =
+        user.subscription_status === 'active' &&
+        user.subscription_expiry &&
+        new Date(user.subscription_expiry) > new Date();
+
+      if (hasActiveSubscription) {
+        // Unlock this match permanently
+        await db.query(
+          `UPDATE matches SET is_unlocked = true WHERE id = $1`,
+          [matchId]
+        );
+      } else {
+        // Count messages sent by this user in this match
+        const { rows: countRows } = await db.query(
+          `SELECT COUNT(*) AS count FROM messages WHERE match_id = $1 AND sender_id = $2`,
+          [matchId, userId]
+        );
+
+        const messageCount = parseInt(countRows[0].count, 10);
+
+        if (messageCount >= 2) {
+          return res.status(402).json({
+            success: false,
+            paywall: true,
+            error: {
+              message: 'Message limit reached. Subscribe to send unlimited messages in this match.',
+            },
+          });
+        }
+      }
+    }
+
+    const crypto = require('crypto');
+    const messageId = crypto.randomUUID();
+
+    // ── Send the message ──
+    const { rows: messageRows } = await db.query(
+      `INSERT INTO messages (id, match_id, sender_id, content)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, match_id, sender_id, content, created_at`,
+      [messageId, matchId, userId, content]
+    );
+
+    const message = messageRows[0];
+
+    // ── Create or update notification for recipient (1 notification per sender) ──
+    const recipientId = match.user1_id === userId ? match.user2_id : match.user1_id;
+    const nowIso = new Date().toISOString();
+
+    const { rows: existingNotif } = await db.query(
+      `SELECT id FROM notifications WHERE to_user_id = $1 AND from_user_id = $2`,
+      [recipientId, userId]
+    );
+
+    let notifId;
+    if (existingNotif.length > 0) {
+      notifId = existingNotif[0].id;
+      await db.query(
+        `UPDATE notifications
+         SET type = 'message', is_read = 0, is_seen = 0, created_at = $1
+         WHERE id = $2`,
+        [nowIso, notifId]
+      );
+    } else {
+      notifId = crypto.randomUUID();
+      await db.query(
+        `INSERT INTO notifications (id, to_user_id, from_user_id, type, created_at)
+         VALUES ($1, $2, $3, 'message', $4)`,
+        [notifId, recipientId, userId, nowIso]
+      );
+    }
+
+    // Emit via Socket.io for real-time delivery & notification
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`match:${matchId}`).emit('new_message', message);
+      io.to(`user:${recipientId}`).emit('notification', {
+        id: notifId,
+        type: 'message',
+        from_user_id: userId,
+        match_id: matchId,
+        created_at: message.created_at,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { message },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getMessages, sendMessage };
