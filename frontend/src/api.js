@@ -14,6 +14,12 @@ export function clearToken() {
 
 export function logout() {
   clearToken();
+  // Clean up the singleton socket connection
+  try {
+    import('./socketManager').then(({ destroySocket }) => destroySocket()).catch(() => {});
+  } catch (e) {
+    // socketManager may not be loaded in all contexts
+  }
   try {
     localStorage.clear();
     sessionStorage.clear();

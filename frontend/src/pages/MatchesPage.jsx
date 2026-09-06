@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../api';
+import { onSocketEvent } from '../socketManager';
 
 export default function MatchesPage() {
   const navigate = useNavigate();
@@ -10,6 +11,30 @@ export default function MatchesPage() {
 
   useEffect(() => {
     loadMatches();
+
+    // Listen for new matches in real-time (e.g. when a mutual like creates a match)
+    const unsubNotification = onSocketEvent('notification', (notif) => {
+      // Refresh matches list when we get a new notification (could be a new match)
+      loadMatches();
+    });
+
+    // Listen for new messages to update last_message preview
+    const unsubMessage = onSocketEvent('new_message', (msg) => {
+      setMatches((prev) =>
+        prev.map((m) => {
+          const mid = m.match_id || m.id;
+          if (mid === msg.match_id) {
+            return { ...m, last_message: msg.content, last_message_at: msg.created_at };
+          }
+          return m;
+        })
+      );
+    });
+
+    return () => {
+      unsubNotification();
+      unsubMessage();
+    };
   }, []);
 
   async function loadMatches() {

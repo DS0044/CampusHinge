@@ -503,3 +503,32 @@ button:disabled {
 .lock-badge-pulse {
   animation: lockPulse 2.2s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
+
+/* ── Typing indicator animation ── */
+@keyframes typingDot {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.typing-dots span {
+  display: inline-block;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* ── Reconnection pulse animation ── */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+

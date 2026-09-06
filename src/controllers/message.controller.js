@@ -222,9 +222,28 @@ async function sendMessage(req, res, next) {
     }
 
     // Emit via Socket.io for real-time delivery & notification
+    // Use socket.to() to emit only to OTHER participants (not the sender)
     const io = req.app.get('io');
     if (io) {
-      io.to(`match:${matchId}`).emit('new_message', message);
+      // Get the sender's socket to exclude them from the broadcast
+      const senderSockets = io.sockets.sockets;
+      let senderSocket = null;
+      for (const [, s] of senderSockets) {
+        if (s.user && s.user.id === userId) {
+          senderSocket = s;
+          break;
+        }
+      }
+
+      if (senderSocket) {
+        // Emit to match room EXCLUDING the sender
+        senderSocket.to(`match:${matchId}`).emit('new_message', message);
+      } else {
+        // Sender not connected via socket — broadcast to entire room
+        io.to(`match:${matchId}`).emit('new_message', message);
+      }
+
+      // Always send notification to recipient's personal room
       io.to(`user:${recipientId}`).emit('notification', {
         id: notifId,
         type: 'message',
@@ -232,6 +251,19 @@ async function sendMessage(req, res, next) {
         match_id: matchId,
         created_at: message.created_at,
       });
+
+      // Push updated unread count to recipient
+      try {
+        const { rows: unreadRows } = await db.query(
+          `SELECT COUNT(*) AS unread_count FROM notifications WHERE to_user_id = $1 AND is_read = 0`,
+          [recipientId]
+        );
+        io.to(`user:${recipientId}`).emit('unread_count', {
+          unread_count: parseInt(unreadRows[0]?.unread_count || 0, 10),
+        });
+      } catch (e) {
+        // Non-critical
+      }
     }
 
     res.status(201).json({

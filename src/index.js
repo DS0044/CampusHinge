@@ -14,9 +14,22 @@ const { apiRateLimiter } = require('./middleware/rateLimiter');
 const app = express();
 const server = http.createServer(app);
 
-// ── Socket.io ──
+// ── Socket.io — optimized for free-tier hosting ──
 const io = new SocketServer(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
+  // Free-tier optimization: keep connections alive before platform idle timeout (e.g. Render's 30s)
+  pingInterval: 25000,
+  pingTimeout: 20000,
+  // Start with WebSocket, fall back to polling if upgrade fails
+  transports: ['websocket', 'polling'],
+  allowUpgrades: true,
+  // Limit memory usage on free tier
+  maxHttpBufferSize: 1e6, // 1MB max per message
+  // Connection state recovery — clients can reconnect and catch up on missed events
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+    skipMiddlewares: false,
+  },
 });
 
 // Make io accessible in routes/controllers

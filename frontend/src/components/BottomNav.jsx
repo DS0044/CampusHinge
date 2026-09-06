@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { notificationApi } from '../api';
+import { onSocketEvent } from '../socketManager';
 
 export default function BottomNav() {
   const navigate = useNavigate();
@@ -12,9 +13,28 @@ export default function BottomNav() {
   useEffect(() => {
     if (['/signup', '/login', '/verify-otp', '/'].includes(currentPath)) return;
     
+    // Initial fetch via HTTP (once)
     fetchUnread();
-    const interval = setInterval(fetchUnread, 60000); // Poll every 60 seconds
-    return () => clearInterval(interval);
+
+    // Listen for real-time unread count updates via socket
+    // This replaces HTTP polling — no more waking up the free-tier server every 60s
+    const unsubUnread = onSocketEvent('unread_count', ({ unread_count }) => {
+      setUnreadCount(unread_count || 0);
+    });
+
+    // Also listen for notifications to increment count
+    const unsubNotification = onSocketEvent('notification', () => {
+      setUnreadCount((prev) => prev + 1);
+    });
+
+    // Fallback: poll every 5 minutes (only as a safety net, not primary)
+    const interval = setInterval(fetchUnread, 5 * 60 * 1000);
+
+    return () => {
+      unsubUnread();
+      unsubNotification();
+      clearInterval(interval);
+    };
   }, [currentPath]);
 
   async function fetchUnread() {

@@ -81,6 +81,16 @@ async function recordSwipe(req, res, next) {
         if (matchRows.length > 0) {
           matched = true;
           matchId = matchRows[0].id;
+        } else {
+          // ON CONFLICT fired — match already exists, look it up
+          const { rows: existingMatch } = await db.query(
+            `SELECT id FROM matches WHERE user1_id = $1 AND user2_id = $2`,
+            [user1, user2]
+          );
+          if (existingMatch.length > 0) {
+            matched = true;
+            matchId = existingMatch[0].id;
+          }
         }
       }
     }
