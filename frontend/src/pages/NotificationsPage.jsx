@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { notificationApi } from '../api';
+import { notificationApi, swipeApi } from '../api';
 import GatedProfileModal from '../components/GatedProfileModal';
 
 export default function NotificationsPage() {
@@ -9,6 +9,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [likingId, setLikingId] = useState(null);
 
   useEffect(() => {
     loadNotifications();
@@ -48,6 +49,36 @@ export default function NotificationsPage() {
     }
   }
 
+  async function handleLikeBack(e, notif) {
+    e.stopPropagation();
+    setLikingId(notif.from_user_id);
+    setError('');
+    try {
+      const res = await swipeApi.swipe(notif.from_user_id, 'like');
+      if (res.data?.matched) {
+        // Immediately reveal photo and name for this entry in local state
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.from_user_id === notif.from_user_id
+              ? {
+                  ...n,
+                  match_id: res.data.match_id,
+                  is_matched: true,
+                  from_user_name: n.real_name || n.from_user_name || 'Matched User',
+                  is_read: true,
+                }
+              : n
+          )
+        );
+      }
+      await loadNotifications();
+    } catch (err) {
+      setError(err.message || 'Failed to match back.');
+    } finally {
+      setLikingId(null);
+    }
+  }
+
   async function handleMarkAllRead() {
     try {
       await notificationApi.markAllAsRead();
@@ -55,6 +86,13 @@ export default function NotificationsPage() {
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  function getPhotoUrl(photo) {
+    if (!photo) return null;
+    if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+    if (photo.startsWith('/')) return `http://localhost:3000${photo}`;
+    return `http://localhost:3000/uploads/${photo}`;
   }
 
   function getRelativeTime(timestamp) {
@@ -115,76 +153,147 @@ export default function NotificationsPage() {
 
       {!loading && notifications.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {notifications.map((notif) => (
-            <div
-              key={notif.id}
-              className="match-card"
-              onClick={() => handleNotificationClick(notif)}
-              style={{
-                borderColor: !notif.is_read ? 'var(--primary-pink)' : 'var(--glass-border)',
-                background: !notif.is_read ? 'rgba(255, 64, 129, 0.08)' : 'var(--bg-card)',
-                position: 'relative',
-                cursor: 'pointer',
-              }}
-            >
-              <div className="avatar" style={{ overflow: 'hidden' }}>
-                {notif.from_user_photo ? (
-                  <img
-                    src={notif.from_user_photo}
-                    alt={notif.from_user_name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+          {notifications.map((notif) => {
+            const isMatched = Boolean(notif.match_id || notif.is_matched);
+            const isRevealed = isMatched || notif.type === 'message';
+            const photoUrl = getPhotoUrl(notif.from_user_photo);
+            const displayName = isRevealed ? (notif.from_user_name || notif.real_name || 'Matched Student') : 'Someone';
+
+            return (
+              <div
+                key={notif.id}
+                className="match-card"
+                onClick={() => handleNotificationClick(notif)}
+                style={{
+                  borderColor: !notif.is_read ? 'var(--primary-pink)' : 'var(--glass-border)',
+                  background: !notif.is_read ? 'rgba(255, 64, 129, 0.08)' : 'var(--bg-card)',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                }}
+              >
+                {/* Avatar with heavy blur and lock badge if not matched back */}
+                <div
+                  className="avatar"
+                  style={{
+                    overflow: 'hidden',
+                    position: 'relative',
+                    borderRadius: '50%',
+                    width: '48px',
+                    height: '48px',
+                    flexShrink: 0,
+                    background: 'var(--primary-gradient)',
+                  }}
+                >
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={displayName}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: isRevealed ? 'none' : 'blur(14px) brightness(0.82)',
+                        transform: isRevealed ? 'scale(1)' : 'scale(1.25)',
+                        transition: 'filter 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s ease',
+                      }}
+                    />
+                  ) : (
+                    notif.type === 'message' ? '💬' : '💖'
+                  )}
+
+                  {/* Lock overlay when photo is blurred */}
+                  {!isRevealed && photoUrl && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        fontSize: '1.05rem',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      🔒
+                    </div>
+                  )}
+                </div>
+
+                {/* Info and masked/revealed name */}
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ color: '#fff', fontSize: '0.98rem', fontWeight: '600' }}>
+                      {notif.type === 'message'
+                        ? `${displayName} sent you a message 💬`
+                        : isRevealed
+                        ? `${displayName} (Matched!) 💖`
+                        : 'Someone liked your profile 💖'}
+                    </h4>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {getRelativeTime(notif.created_at)}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {notif.type === 'message'
+                      ? 'Tap to view conversation and reply 💬'
+                      : isRevealed
+                      ? 'Mutual match active! Tap to send free message 💬'
+                      : 'Like them back to reveal their full photo & name.'}
+                  </p>
+                </div>
+
+                {/* Right side action: Chat button if matched, Like Back button if not matched */}
+                {isRevealed && notif.match_id ? (
+                  <button
+                    className="btn-primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/chat/${notif.match_id}`);
+                    }}
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: 'var(--radius-full)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {notif.type === 'message' ? '💬 Reply' : '💬 Chat (2 Free)'}
+                  </button>
+                ) : !isRevealed ? (
+                  <button
+                    className="btn-primary"
+                    disabled={likingId === notif.from_user_id}
+                    onClick={(e) => handleLikeBack(e, notif)}
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '0.42rem 0.85rem',
+                      borderRadius: 'var(--radius-full)',
+                      whiteSpace: 'nowrap',
+                      background: 'var(--primary-gradient)',
+                      boxShadow: '0 2px 10px var(--accent-glow)',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {likingId === notif.from_user_id ? 'Matching...' : 'Like Back 💖'}
+                  </button>
                 ) : (
-                  notif.type === 'message' ? '💬' : '💖'
+                  !notif.is_read && (
+                    <div
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: 'var(--primary-pink)',
+                        boxShadow: '0 0 6px var(--accent-glow)',
+                      }}
+                    />
+                  )
                 )}
               </div>
-
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ color: '#fff', fontSize: '0.98rem', fontWeight: '600' }}>
-                    {notif.type === 'message'
-                      ? `${notif.from_user_name} sent you a message 💬`
-                      : notif.match_id
-                      ? `${notif.from_user_name} (Matched!)`
-                      : 'Someone liked your profile 💖'}
-                  </h4>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    {getRelativeTime(notif.created_at)}
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  {notif.type === 'message'
-                    ? 'Tap to view conversation and reply 💬'
-                    : notif.match_id
-                    ? 'Mutual match active! Tap to send free message 💬'
-                    : 'Tap to view profile details and match back.'}
-                </p>
-              </div>
-
-              {notif.match_id ? (
-                <button
-                  className="btn-primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/chat/${notif.match_id}`);
-                  }}
-                  style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
-                >
-                  {notif.type === 'message' ? '💬 Reply' : '💬 Chat (2 Free)'}
-                </button>
-              ) : (
-                !notif.is_read && (
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: 'var(--primary-pink)',
-                    boxShadow: '0 0 6px var(--accent-glow)'
-                  }} />
-                )
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

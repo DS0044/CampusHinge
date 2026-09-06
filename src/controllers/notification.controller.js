@@ -63,6 +63,8 @@ async function getNotifications(req, res, next) {
         }
       }
 
+      const isMatched = Boolean(n.match_id);
+
       return {
         id: n.id,
         type: n.type,
@@ -70,9 +72,11 @@ async function getNotifications(req, res, next) {
         is_read: Boolean(n.is_read),
         created_at: n.created_at,
         from_user_id: n.from_user_id,
-        from_user_name: n.from_user_name || 'Campus Student',
+        from_user_name: isMatched || n.type === 'message' ? (n.from_user_name || 'Campus Student') : 'Someone',
+        real_name: n.from_user_name || 'Campus Student',
         from_user_photo: firstPhoto,
         match_id: n.match_id || null,
+        is_matched: isMatched,
       };
     });
 
@@ -236,7 +240,7 @@ async function getGatedProfile(req, res, next) {
       data: {
         profile: {
           user_id: rawProfile.user_id,
-          name: rawProfile.name,
+          name: 'Someone',
           primary_photo: photos[0] || null,
           photos: [photos[0] || null],
           is_locked: true,

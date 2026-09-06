@@ -149,13 +149,21 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                   border: '3px solid var(--primary-pink)',
                   boxShadow: '0 8px 24px var(--accent-glow), 0 0 15px rgba(255, 64, 129, 0.4)',
                   background: 'var(--primary-gradient)',
+                  position: 'relative',
                 }}
               >
                 {profile.primary_photo || profile.photos?.[0] ? (
                   <img
                     src={profile.primary_photo || profile.photos[0]}
-                    alt={profile.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    alt={profile.has_matched ? profile.name : 'Someone'}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      filter: profile.has_matched ? 'none' : 'blur(16px) brightness(0.85)',
+                      transform: profile.has_matched ? 'scale(1)' : 'scale(1.25)',
+                      transition: 'filter 0.5s ease, transform 0.5s ease',
+                    }}
                   />
                 ) : (
                   <div
@@ -171,13 +179,31 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                     👤
                   </div>
                 )}
+                {!profile.has_matched && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      fontSize: '1.5rem',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    🔒
+                  </div>
+                )}
               </div>
 
-              <h2 style={{ fontSize: '1.45rem', margin: '0 0 0.25rem 0', color: '#fff' }}>{profile.name}</h2>
+              <h2 style={{ fontSize: '1.45rem', margin: '0 0 0.25rem 0', color: '#fff' }}>
+                {profile.has_matched ? profile.name : 'Someone'}
+              </h2>
               <span
                 style={{
                   fontSize: '0.8rem',
-                  color: profile.is_locked ? '#ff4081' : '#00e676',
+                  color: profile.has_matched ? '#00e676' : '#ff4081',
                   fontWeight: '600',
                   letterSpacing: '0.02em',
                   display: 'inline-flex',
@@ -185,7 +211,7 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                   gap: '0.3rem',
                 }}
               >
-                {profile.is_locked ? '🔒 Liked Your Profile' : profile.has_matched ? '💖 Mutual Match' : '⚡ Unlocked Profile'}
+                {profile.has_matched ? '💖 Mutual Match' : '🔒 Liked Your Profile'}
               </span>
             </div>
 
@@ -224,10 +250,10 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
 
                 <div>
                   <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.35rem 0', color: '#fff' }}>
-                    Full Profile Locked
+                    Identity & Profile Blurred
                   </h3>
                   <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
-                    Like <strong style={{ color: '#fff' }}>{profile.name}</strong> back to create a mutual match or subscribe to unlock full profile access!
+                    Like back to reveal their full photo, identity, and start chatting!
                   </p>
                 </div>
 
