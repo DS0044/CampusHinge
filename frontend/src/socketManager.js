@@ -1,98 +1,127 @@
 /**
- * Socket Manager — Singleton WebSocket connection for CampusHinge.
+ * Socket Manager — Native WebSocket for Cloudflare Workers/Durable Objects.
  *
- * Why a singleton? On free-tier hosting (Render, Railway), each new socket
- * connection triggers a cold start (1-5s). Creating a connection per page
- * visit means users wait every time they open a chat. This manager creates
- * ONE connection at login and reuses it everywhere.
+ * Replaces Socket.io with native WebSocket API.
+ * Uses the same public interface (getSocket, joinMatch, etc.) so the rest
+ * of the frontend doesn't need to change.
  *
- * Features:
- * - Auto-reconnect with exponential backoff
- * - WebSocket-first with polling fallback
- * - Match room join/leave management
- * - Event listener registration/cleanup
- * - Connection state tracking
+ * Protocol:
+ *   Client → Server: JSON { type, matchId, content, token }
+ *   Server → Client: JSON { type, message, userId }
  */
-import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace('/api', '')
-  : 'http://localhost:3000';
+const WS_URL = import.meta.env.VITE_WS_URL
+  || (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/api$/, '').replace(/^http/, 'ws') + '/ws/chat'
+    : 'ws://localhost:8787/ws/chat');
 
-let socket = null;
-let connectionState = 'disconnected'; // 'disconnected' | 'connecting' | 'connected'
+let ws = null;
+let connectionState = 'disconnected';
 const stateListeners = new Set();
-const currentRooms = new Set(); // Track joined match rooms
+const eventListeners = new Map(); // event → Set<handler>
+const currentRooms = new Set();
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+const MAX_RECONNECT_DELAY = 30000;
 
 /**
- * Get or create the singleton socket connection.
- * Call this after login when a JWT token is available.
+ * Get or create the singleton WebSocket connection.
  */
 export function getSocket() {
-  if (socket && socket.connected) return socket;
+  if (ws && ws.readyState === WebSocket.OPEN) return ws;
 
   const token = localStorage.getItem('token');
   if (!token) return null;
 
-  // If socket exists but disconnected, it will auto-reconnect
-  if (socket) return socket;
+  if (ws && (ws.readyState === WebSocket.CONNECTING)) return ws;
+
+  connect(token);
+  return ws;
+}
+
+function connect(token) {
+  if (ws && ws.readyState <= WebSocket.OPEN) return;
 
   setConnectionState('connecting');
 
-  socket = io(SOCKET_URL, {
-    auth: { token },
-    // Optimized for free-tier hosting
-    transports: ['websocket', 'polling'], // Try WebSocket first, fall back to polling
-    upgrade: true,
-    // Reconnection with exponential backoff (critical for cold starts)
-    reconnection: true,
-    reconnectionAttempts: Infinity, // Never stop trying
-    reconnectionDelay: 1000, // Start at 1s
-    reconnectionDelayMax: 30000, // Cap at 30s (covers most cold start times)
-    randomizationFactor: 0.5, // Add jitter to prevent thundering herd
-    // Timeouts
-    timeout: 20000, // 20s connection timeout
-    // Prevent buffering too many events during disconnection
-    // (we'll re-fetch on reconnect instead)
-  });
+  try {
+    ws = new WebSocket(WS_URL);
+  } catch (err) {
+    console.warn('🔌 WebSocket creation failed:', err.message);
+    scheduleReconnect();
+    return;
+  }
 
-  socket.on('connect', () => {
-    console.log('🔌 Socket connected');
+  ws.onopen = () => {
+    console.log('🔌 WebSocket connected');
     setConnectionState('connected');
+    reconnectAttempts = 0;
 
-    // Re-join any match rooms we were in before disconnection
+    // Re-join any match rooms
     for (const matchId of currentRooms) {
-      socket.emit('join_match', matchId);
+      ws.send(JSON.stringify({ type: 'join', matchId, token }));
     }
-  });
+  };
 
-  socket.on('disconnect', (reason) => {
-    console.log('🔌 Socket disconnected:', reason);
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      dispatchEvent(data.type, data);
+    } catch (err) {
+      console.error('🔌 Failed to parse message:', err);
+    }
+  };
+
+  ws.onclose = (event) => {
+    console.log('🔌 WebSocket disconnected:', event.code, event.reason);
     setConnectionState('disconnected');
-  });
 
-  socket.on('reconnect_attempt', (attempt) => {
-    console.log(`🔌 Reconnecting... attempt ${attempt}`);
-    setConnectionState('connecting');
-  });
-
-  socket.on('reconnect', () => {
-    console.log('🔌 Reconnected successfully');
-    setConnectionState('connected');
-  });
-
-  socket.on('connect_error', (err) => {
-    console.warn('🔌 Connection error:', err.message);
-    // If auth fails, don't keep trying
-    if (err.message === 'Authentication required' || err.message === 'Invalid or expired token') {
-      console.warn('🔌 Auth failed — stopping reconnection');
-      socket.disconnect();
-      socket = null;
-      setConnectionState('disconnected');
+    if (event.code === 4001 || event.code === 4003) {
+      console.warn('🔌 Auth failed — not reconnecting');
+      ws = null;
+      return;
     }
-  });
 
-  return socket;
+    scheduleReconnect();
+  };
+
+  ws.onerror = (err) => {
+    console.warn('🔌 WebSocket error');
+  };
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+
+  reconnectAttempts++;
+  const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+  const jitter = delay * (0.5 + Math.random() * 0.5);
+
+  console.log(`🔌 Reconnecting in ${Math.round(jitter / 1000)}s (attempt ${reconnectAttempts})`);
+  setConnectionState('connecting');
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    ws = null;
+    const token = localStorage.getItem('token');
+    if (token) connect(token);
+  }, jitter);
+}
+
+function dispatchEvent(type, data) {
+  const handlers = eventListeners.get(type);
+  if (handlers) {
+    for (const handler of handlers) {
+      try { handler(data); } catch (e) { console.error('Event handler error:', e); }
+    }
+  }
+
+  // Map Durable Object events to Socket.io-compatible event names
+  // so existing ChatPage.jsx code works without changes
+  if (type === 'new_message') {
+    const handlers2 = eventListeners.get('new_message');
+    // Already dispatched above
+  }
 }
 
 /**
@@ -106,12 +135,14 @@ export function initSocket() {
  * Disconnect and clean up (call on logout).
  */
 export function destroySocket() {
-  if (socket) {
-    socket.removeAllListeners();
-    socket.disconnect();
-    socket = null;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (ws) {
+    ws.onclose = null; // Prevent reconnect
+    ws.close();
+    ws = null;
   }
   currentRooms.clear();
+  eventListeners.clear();
   setConnectionState('disconnected');
 }
 
@@ -120,9 +151,9 @@ export function destroySocket() {
  */
 export function joinMatch(matchId) {
   currentRooms.add(matchId);
-  const s = getSocket();
-  if (s && s.connected) {
-    s.emit('join_match', matchId);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    const token = localStorage.getItem('token');
+    ws.send(JSON.stringify({ type: 'join', matchId, token }));
   }
 }
 
@@ -131,10 +162,8 @@ export function joinMatch(matchId) {
  */
 export function leaveMatch(matchId) {
   currentRooms.delete(matchId);
-  const s = getSocket();
-  if (s && s.connected) {
-    s.emit('leave_match', matchId);
-  }
+  // Native WebSocket doesn't have room concept at protocol level
+  // The Durable Object handles this server-side
 }
 
 /**
@@ -143,24 +172,37 @@ export function leaveMatch(matchId) {
  */
 export function sendMessageViaSocket(matchId, content) {
   return new Promise((resolve, reject) => {
-    const s = getSocket();
-    if (!s || !s.connected) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       reject(new Error('Socket not connected'));
       return;
     }
 
-    // Use Socket.io acknowledgement for reliable delivery
-    s.emit('send_message', { matchId, content }, (response) => {
-      if (response.error) {
-        reject(new Error(response.error === 'paywall' ? response.message : response.error));
-      } else {
-        resolve(response.message);
+    // Listen for the ACK
+    const ackHandler = (data) => {
+      if (data.type === 'message_ack' && data.message) {
+        removeHandler('message_ack', ackHandler);
+        clearTimeout(timeout);
+        resolve(data.message);
       }
-    });
+    };
 
-    // Timeout after 3s — server now ACKs instantly before DB write,
-    // so if it takes longer than this, something is genuinely wrong
-    setTimeout(() => {
+    const errorHandler = (data) => {
+      if (data.type === 'error') {
+        removeHandler('error', errorHandler);
+        removeHandler('message_ack', ackHandler);
+        clearTimeout(timeout);
+        reject(new Error(data.message));
+      }
+    };
+
+    addHandler('message_ack', ackHandler);
+    addHandler('error', errorHandler);
+
+    ws.send(JSON.stringify({ type: 'send_message', matchId, content }));
+
+    const timeout = setTimeout(() => {
+      removeHandler('message_ack', ackHandler);
+      removeHandler('error', errorHandler);
       reject(new Error('Message send timeout'));
     }, 3000);
   });
@@ -170,9 +212,8 @@ export function sendMessageViaSocket(matchId, content) {
  * Send typing indicator.
  */
 export function sendTyping(matchId) {
-  const s = getSocket();
-  if (s && s.connected) {
-    s.emit('typing', { matchId });
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'typing', matchId }));
   }
 }
 
@@ -180,22 +221,27 @@ export function sendTyping(matchId) {
  * Send stop typing indicator.
  */
 export function sendStopTyping(matchId) {
-  const s = getSocket();
-  if (s && s.connected) {
-    s.emit('stop_typing', { matchId });
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'stop_typing', matchId }));
   }
+}
+
+function addHandler(event, handler) {
+  if (!eventListeners.has(event)) eventListeners.set(event, new Set());
+  eventListeners.get(event).add(handler);
+}
+
+function removeHandler(event, handler) {
+  const handlers = eventListeners.get(event);
+  if (handlers) handlers.delete(handler);
 }
 
 /**
  * Subscribe to socket events. Returns an unsubscribe function.
  */
 export function onSocketEvent(event, handler) {
-  const s = getSocket();
-  if (s) {
-    s.on(event, handler);
-    return () => s.off(event, handler);
-  }
-  return () => {};
+  addHandler(event, handler);
+  return () => removeHandler(event, handler);
 }
 
 /**
@@ -210,7 +256,6 @@ export function getConnectionState() {
  */
 export function onConnectionStateChange(listener) {
   stateListeners.add(listener);
-  // Immediately call with current state
   listener(connectionState);
   return () => stateListeners.delete(listener);
 }
@@ -218,10 +263,6 @@ export function onConnectionStateChange(listener) {
 function setConnectionState(state) {
   connectionState = state;
   for (const listener of stateListeners) {
-    try {
-      listener(state);
-    } catch (e) {
-      console.error('State listener error:', e);
-    }
+    try { listener(state); } catch (e) { console.error('State listener error:', e); }
   }
 }
