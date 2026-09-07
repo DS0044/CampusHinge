@@ -20,7 +20,7 @@ async function signup(req, res, next) {
     console.log(`🔐  [AUTH SIGNUP] Step 1: Checking domain allowlist…`);
     if (!isAllowedDomain(cleanEmail)) {
       console.warn(`🔐  [AUTH SIGNUP] ✗ Domain rejected for: ${cleanEmail}`);
-      throw new AppError('Email domain not allowed. Please use your campus email.', 403);
+      throw new AppError("This email isn't eligible for verification", 403);
     }
     console.log(`🔐  [AUTH SIGNUP] ✓ Domain allowed`);
 
@@ -82,7 +82,7 @@ async function login(req, res, next) {
     console.log(`🔐  [AUTH LOGIN] Step 1: Checking domain allowlist…`);
     if (!isAllowedDomain(cleanEmail)) {
       console.warn(`🔐  [AUTH LOGIN] ✗ Domain rejected for: ${cleanEmail}`);
-      throw new AppError('Email domain not allowed. Please use your campus email.', 403);
+      throw new AppError("This email isn't eligible for verification", 403);
     }
     console.log(`🔐  [AUTH LOGIN] ✓ Domain allowed`);
 
