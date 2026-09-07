@@ -119,7 +119,34 @@ function initTables() {
       FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    -- ══════════════════════════════════════════════
+    -- MATCHING ALGORITHM TABLES
+    -- ══════════════════════════════════════════════
+
+    -- Behavioral learning: tracks tag-level swipe affinities per user
+    CREATE TABLE IF NOT EXISTS swipe_preferences (
+      user_id TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      likes INTEGER DEFAULT 0,
+      total INTEGER DEFAULT 0,
+      PRIMARY KEY (user_id, tag)
+    );
+
+    -- Interest rarity cache: how many users have each tag
+    CREATE TABLE IF NOT EXISTS interest_popularity (
+      tag TEXT PRIMARY KEY,
+      user_count INTEGER DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
+
+  // Add last_active column to users if it doesn't exist
+  try {
+    db.db.exec(`ALTER TABLE users ADD COLUMN last_active TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
 
   console.log('🎉  SQLite schema initialized successfully!');
   process.exit(0);

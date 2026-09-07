@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
+const { updateSwipePreferences } = require('../services/scoring.service');
 
 /**
  * POST /api/swipe
@@ -47,6 +48,27 @@ async function recordSwipe(req, res, next) {
       `INSERT INTO swipes (id, swiper_id, swiped_id, action) VALUES ($1, $2, $3, $4)`,
       [swipeId, swiperId, swiped_id, action]
     );
+
+    // Update last_active for the swiper
+    db.query(`UPDATE users SET last_active = datetime('now') WHERE id = $1`, [swiperId]).catch(() => {});
+
+    // ── BEHAVIORAL LEARNING: Feed the scoring engine ──
+    // Fetch the swiped user's interests and record tag-level affinity
+    try {
+      const { rows: swipedProfile } = await db.query(
+        `SELECT interests FROM profiles WHERE user_id = $1`, [swiped_id]
+      );
+      if (swipedProfile.length > 0) {
+        let interests = [];
+        try {
+          interests = typeof swipedProfile[0].interests === 'string'
+            ? JSON.parse(swipedProfile[0].interests)
+            : swipedProfile[0].interests || [];
+        } catch { interests = []; }
+        // Non-blocking: don't let preference tracking break the swipe
+        updateSwipePreferences(swiperId, interests, action).catch(() => {});
+      }
+    } catch { /* non-critical */ }
 
     let matched = false;
     let matchId = null;
