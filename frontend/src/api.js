@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
 
 function getToken() {
   return localStorage.getItem('token');
@@ -14,6 +14,12 @@ export function clearToken() {
 
 export function logout() {
   clearToken();
+  // Clean up the singleton socket connection
+  try {
+    import('./socketManager').then(({ destroySocket }) => destroySocket()).catch(() => {});
+  } catch (e) {
+    // socketManager may not be loaded in all contexts
+  }
   try {
     localStorage.clear();
     sessionStorage.clear();

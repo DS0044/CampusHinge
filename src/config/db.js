@@ -64,22 +64,25 @@ async function query(text, params = []) {
       if (tableMatch) {
         const tableName = tableMatch[1];
         try {
-          // Check all params for matching row or use lastInsertRowid
-          for (const param of params) {
-            if (param && (typeof param === 'string' || typeof param === 'number')) {
-              try {
-                rows = db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE id = ? OR user_id = ? OR LOWER(email) = LOWER(?)`).all(param, param, param);
-                if (rows.length > 0) break;
-              } catch {
-                try {
-                  rows = db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE id = ? OR user_id = ?`).all(param, param);
-                  if (rows.length > 0) break;
-                } catch {
-                  // Ignore column errors
-                }
-              }
+          // The first parameter is typically the `id` (UUID) in this codebase
+          if (params && params.length > 0 && params[0] != null) {
+            try {
+              rows = db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE id = ?`).all(params[0]);
+            } catch {
+              // Table might not have an `id` column; ignore
             }
           }
+
+          // If first param didn't work, try user_id for profile-style tables
+          if (rows.length === 0 && params && params.length > 1 && params[1] != null) {
+            try {
+              rows = db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE id = ? OR user_id = ?`).all(params[1], params[1]);
+            } catch {
+              // Ignore column errors
+            }
+          }
+
+          // Last resort: use lastInsertRowid
           if (rows.length === 0 && info.lastInsertRowid) {
             rows = db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE rowid = ?`).all(info.lastInsertRowid);
           }

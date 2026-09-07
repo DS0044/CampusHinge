@@ -1,17 +1,22 @@
 const db = require('../config/db');
 const { AppError } = require('../middleware/errorHandler');
+const {
+  computeCompatibilityScore,
+  refreshTagPopularity,
+} = require('../services/scoring.service');
 
 /**
  * GET /api/discover
- * Returns a deck of profiles for the authenticated user to swipe on.
+ * Returns a deck of profiles ranked by compatibility score.
  *
- * Filters:
- * - Exclude self
- * - Exclude already-swiped users
- * - Exclude blocked users (in either direction)
- * - Exclude banned users
- * - Filter by gender/interested_in compatibility
- * - Only users with a profile
+ * The scoring engine uses 3 signals:
+ * 1. Interest overlap (rarity-weighted) — 45%
+ * 2. Behavioral learning (swipe pattern affinity) — 30%
+ * 3. Freshness & fairness (recency, anti-popularity, new-user boost) — 25%
+ *
+ * Hard filters (must pass before scoring):
+ * - Gender/interested_in compatibility (bidirectional)
+ * - Exclude self, already-swiped, blocked, banned
  *
  * Query params: ?limit=10 (default 10, max 50)
  */
@@ -20,7 +25,13 @@ async function getDiscoverDeck(req, res, next) {
     const userId = req.user.id;
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
 
-    // 1. Get current user's profile to know their preferences & interests
+    // Update last_active for the current user
+    db.query(
+      `UPDATE users SET last_active = datetime('now') WHERE id = $1`,
+      [userId]
+    ).catch(() => {});
+
+    // 1. Get current user's profile
     const { rows: myProfile } = await db.query(
       `SELECT gender, interested_in, interests FROM profiles WHERE user_id = $1`,
       [userId]
@@ -36,11 +47,12 @@ async function getDiscoverDeck(req, res, next) {
       myInterests = typeof myProfile[0].interests === 'string'
         ? JSON.parse(myProfile[0].interests)
         : myProfile[0].interests || [];
-    } catch (e) {
+    } catch {
       myInterests = [];
     }
 
-    // 2. Build gender filter conditions
+    // 2. Build gender filter — bidirectional compatibility
+    //    "I'm interested in X" AND "They're interested in my gender"
     let genderFilter = '';
     const params = [userId];
     let paramIndex = 2;
@@ -55,29 +67,20 @@ async function getDiscoverDeck(req, res, next) {
     params.push(myGender);
     paramIndex++;
 
-    // 3. Build interest overlap SQL expression dynamically
-    let overlapExpr = '0';
-    if (Array.isArray(myInterests) && myInterests.length > 0) {
-      const cases = myInterests.map((interest) => {
-        const idx = paramIndex;
-        paramIndex++;
-        params.push(`"${interest}"`);
-        return `(CASE WHEN instr(p.interests, $${idx}) > 0 THEN 1 ELSE 0 END)`;
-      });
-      overlapExpr = cases.join(' + ');
-    }
+    // 3. Fetch candidate pool (wider pool, then score & sort in JS)
+    //    Fetch up to 5x the limit to have enough candidates for scoring
+    const poolSize = Math.min(limit * 5, 100);
+    const poolParamIdx = paramIndex;
+    params.push(poolSize);
 
-    const limitParamIdx = paramIndex;
-    params.push(limit);
-
-    const { rows: profiles } = await db.query(
-      `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender, p.interests,
-              (${overlapExpr}) AS shared_interest_count
+    const { rows: candidates } = await db.query(
+      `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender,
+              p.interested_in, p.interests, p.branch
        FROM profiles p
        JOIN users u ON u.id = p.user_id
        WHERE p.user_id != $1
-         AND u.is_banned = false
-         AND u.email_verified = true
+         AND u.is_banned = 0
+         AND u.email_verified = 1
          -- Exclude already swiped
          AND p.user_id NOT IN (
            SELECT swiped_id FROM swipes WHERE swiper_id = $1
@@ -89,36 +92,60 @@ async function getDiscoverDeck(req, res, next) {
            SELECT blocker_id FROM blocks WHERE blocked_id = $1
          )
          ${genderFilter}
-       ORDER BY shared_interest_count DESC, RANDOM()
-       LIMIT $${limitParamIdx}`,
+       ORDER BY RANDOM()
+       LIMIT $${poolParamIdx}`,
       params
     );
 
-    const formattedProfiles = profiles.map((p) => {
-      let photos = [];
-      let interests = [];
-      try { photos = typeof p.photos === 'string' ? JSON.parse(p.photos) : p.photos || []; } catch { photos = []; }
-      try { interests = typeof p.interests === 'string' ? JSON.parse(p.interests) : p.interests || []; } catch { interests = []; }
+    // 4. Score each candidate using the 3-signal engine
+    const scoredProfiles = await Promise.all(
+      candidates.map(async (candidate) => {
+        const { score, breakdown } = await computeCompatibilityScore(
+          userId,
+          myInterests,
+          candidate
+        );
 
-      const sharedInterests = Array.isArray(interests) && Array.isArray(myInterests)
-        ? interests.filter((tag) => myInterests.includes(tag))
-        : [];
+        // Parse JSON fields
+        let photos = [];
+        let interests = [];
+        try { photos = typeof candidate.photos === 'string' ? JSON.parse(candidate.photos) : candidate.photos || []; } catch { photos = []; }
+        try { interests = typeof candidate.interests === 'string' ? JSON.parse(candidate.interests) : candidate.interests || []; } catch { interests = []; }
 
-      return {
-        ...p,
-        id: p.user_id,
-        photos,
-        interests,
-        shared_interests: sharedInterests,
-        shared_count: sharedInterests.length,
-      };
-    });
+        const sharedInterests = Array.isArray(interests) && Array.isArray(myInterests)
+          ? interests.filter((tag) => myInterests.includes(tag))
+          : [];
+
+        return {
+          id: candidate.user_id,
+          user_id: candidate.user_id,
+          name: candidate.name,
+          bio: candidate.bio,
+          year: candidate.year,
+          gender: candidate.gender,
+          branch: candidate.branch,
+          photos,
+          interests,
+          shared_interests: sharedInterests,
+          shared_count: sharedInterests.length,
+          compatibility_score: score,
+          compatibility_breakdown: breakdown,
+        };
+      })
+    );
+
+    // 5. Sort by compatibility score (highest first) and take top `limit`
+    scoredProfiles.sort((a, b) => b.compatibility_score - a.compatibility_score);
+    const topProfiles = scoredProfiles.slice(0, limit);
+
+    // 6. Refresh tag popularity in background (non-blocking)
+    refreshTagPopularity().catch(() => {});
 
     res.status(200).json({
       success: true,
       data: {
-        profiles: formattedProfiles,
-        count: formattedProfiles.length,
+        profiles: topProfiles,
+        count: topProfiles.length,
       },
     });
   } catch (err) {

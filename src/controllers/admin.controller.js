@@ -95,7 +95,7 @@ async function banUser(req, res, next) {
     const { userId } = req.params;
 
     const { rows } = await db.query(
-      `UPDATE users SET is_banned = true, updated_at = NOW() WHERE id = $1 RETURNING id, email, is_banned`,
+      `UPDATE users SET is_banned = 1, updated_at = datetime('now') WHERE id = $1 RETURNING id, email, is_banned`,
       [userId]
     );
 
@@ -122,7 +122,7 @@ async function unbanUser(req, res, next) {
     const { userId } = req.params;
 
     const { rows } = await db.query(
-      `UPDATE users SET is_banned = false, updated_at = NOW() WHERE id = $1 RETURNING id, email, is_banned`,
+      `UPDATE users SET is_banned = 0, updated_at = datetime('now') WHERE id = $1 RETURNING id, email, is_banned`,
       [userId]
     );
 

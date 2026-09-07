@@ -1,0 +1,39 @@
+name = "campushinge-api"
+main = "src/index.js"
+compatibility_date = "2025-09-07"
+compatibility_flags = ["nodejs_compat"]
+
+# ── D1 Database (Cloudflare's SQLite) ──
+[[d1_databases]]
+binding = "DB"
+database_name = "campushinge-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# ── R2 Bucket (S3-compatible object storage) ──
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "campushinge-uploads"
+
+# ── Durable Objects (WebSocket chat rooms) ──
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatRoom"]
+
+# ── Environment variables (non-secret) ──
+[vars]
+ALLOWED_EMAIL_DOMAINS = "galgotiasuniversity.ac.in,galgotias.org"
+JWT_EXPIRES_IN = "7d"
+SUBSCRIPTION_DURATION_DAYS = "35"
+FRONTEND_URL = "https://campushinge.pages.dev"
+
+# Secrets (set via `wrangler secret put <KEY>`)
+# JWT_SECRET
+# RESEND_API_KEY
+# RAZORPAY_KEY_ID
+# RAZORPAY_KEY_SECRET
+# RAZORPAY_WEBHOOK_SECRET
+# RAZORPAY_PLAN_ID

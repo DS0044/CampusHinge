@@ -29,33 +29,36 @@ async function subscribe(req, res, next) {
     // Create subscription via payment service
     const { subscriptionId, shortUrl, mock } = await createSubscription(userId, email);
 
-    // Store subscription record
+    // Store subscription record (generate UUID for primary key)
+    const crypto = require('crypto');
+    const subRecordId = crypto.randomUUID();
     await db.query(
-      `INSERT INTO subscriptions (user_id, razorpay_subscription_id, status)
-       VALUES ($1, $2, 'pending')`,
-      [userId, subscriptionId]
+      `INSERT INTO subscriptions (id, user_id, razorpay_subscription_id, status)
+       VALUES ($1, $2, $3, 'pending')`,
+      [subRecordId, userId, subscriptionId]
     );
 
     // If mock mode, auto-activate the subscription for testing
     if (mock) {
       const expiresAt = new Date(Date.now() + env.SUBSCRIPTION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+      const nowIso = new Date().toISOString();
 
       await db.query(
-        `UPDATE subscriptions SET status = 'active', activated_at = NOW(), expires_at = $1
-         WHERE razorpay_subscription_id = $2`,
-        [expiresAt, subscriptionId]
+        `UPDATE subscriptions SET status = 'active', activated_at = $1, expires_at = $2
+         WHERE razorpay_subscription_id = $3`,
+        [nowIso, expiresAt.toISOString(), subscriptionId]
       );
 
       await db.query(
-        `UPDATE users SET subscription_status = 'active', subscription_expiry = $1, updated_at = NOW()
-         WHERE id = $2`,
-        [expiresAt, userId]
+        `UPDATE users SET subscription_status = 'active', subscription_expiry = $1, updated_at = $2
+         WHERE id = $3`,
+        [expiresAt.toISOString(), nowIso, userId]
       );
 
       // Unlock all existing matches for this user
       await db.query(
-        `UPDATE matches SET is_unlocked = true
-         WHERE (user1_id = $1 OR user2_id = $1) AND is_unlocked = false`,
+        `UPDATE matches SET is_unlocked = 1
+         WHERE (user1_id = $1 OR user2_id = $1) AND is_unlocked = 0`,
         [userId]
       );
 
@@ -121,25 +124,26 @@ async function handleWebhook(req, res, next) {
 
       const userId = rows[0].user_id;
       const expiresAt = new Date(Date.now() + env.SUBSCRIPTION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+      const nowIso = new Date().toISOString();
 
       // Activate subscription
       await db.query(
-        `UPDATE subscriptions SET status = 'active', activated_at = NOW(), expires_at = $1
-         WHERE razorpay_subscription_id = $2`,
-        [expiresAt, subscriptionId]
+        `UPDATE subscriptions SET status = 'active', activated_at = $1, expires_at = $2
+         WHERE razorpay_subscription_id = $3`,
+        [nowIso, expiresAt.toISOString(), subscriptionId]
       );
 
       // Update user's subscription status
       await db.query(
-        `UPDATE users SET subscription_status = 'active', subscription_expiry = $1, updated_at = NOW()
-         WHERE id = $2`,
-        [expiresAt, userId]
+        `UPDATE users SET subscription_status = 'active', subscription_expiry = $1, updated_at = $2
+         WHERE id = $3`,
+        [expiresAt.toISOString(), nowIso, userId]
       );
 
       // Unlock all existing matches for this user
       await db.query(
-        `UPDATE matches SET is_unlocked = true
-         WHERE (user1_id = $1 OR user2_id = $1) AND is_unlocked = false`,
+        `UPDATE matches SET is_unlocked = 1
+         WHERE (user1_id = $1 OR user2_id = $1) AND is_unlocked = 0`,
         [userId]
       );
 

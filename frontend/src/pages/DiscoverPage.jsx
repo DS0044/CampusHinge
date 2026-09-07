@@ -91,6 +91,9 @@ export default function DiscoverPage() {
     ? currentProfile.shared_interests
     : candidateInterests.filter((tag) => myInterests.includes(tag));
 
+  const compatScore = currentProfile?.compatibility_score;
+  const compatBreakdown = currentProfile?.compatibility_breakdown;
+
   const totalPhotos = photos.length;
 
   const handlePrevPhoto = (e) => {
@@ -241,6 +244,41 @@ export default function DiscoverPage() {
               ℹ️
             </button>
 
+            {/* Compatibility Score Badge */}
+            {typeof compatScore === 'number' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '52px',
+                  right: '10px',
+                  background: compatScore >= 70
+                    ? 'linear-gradient(135deg, #00e676, #00c853)'
+                    : compatScore >= 40
+                      ? 'linear-gradient(135deg, #ff9800, #f57c00)'
+                      : 'linear-gradient(135deg, #78909c, #546e7a)',
+                  color: '#fff',
+                  borderRadius: '12px',
+                  padding: '0.25rem 0.6rem',
+                  fontSize: '0.78rem',
+                  fontWeight: '700',
+                  zIndex: 25,
+                  boxShadow: compatScore >= 70
+                    ? '0 2px 12px rgba(0, 230, 118, 0.5)'
+                    : '0 2px 8px rgba(0,0,0,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  letterSpacing: '0.02em',
+                }}
+                title={compatBreakdown
+                  ? `Interest: ${compatBreakdown.interest}% | Behavioral: ${compatBreakdown.behavioral}% | Freshness: ${compatBreakdown.freshness}%`
+                  : `${compatScore}% compatible`}
+              >
+                {compatScore >= 70 ? '💚' : compatScore >= 40 ? '🧡' : '🤍'}
+                {compatScore}%
+              </div>
+            )}
+
             {/* Left & Right Tap Zones for Photo Cycling */}
             {totalPhotos > 1 && (
               <>
@@ -320,10 +358,21 @@ export default function DiscoverPage() {
 
             <div className="swipe-card-info" style={{ zIndex: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{currentProfile.name || 'Campus Student'}</h2>
                   {currentProfile.year && (
                     <span className="swipe-card-badge">Class of '{String(currentProfile.year).slice(-2)}</span>
+                  )}
+                  {typeof compatScore === 'number' && compatScore >= 70 && (
+                    <span style={{
+                      background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 83, 0.2))',
+                      border: '1px solid rgba(0, 230, 118, 0.4)',
+                      color: '#00e676',
+                      padding: '0.15rem 0.55rem',
+                      borderRadius: 'var(--radius-full)',
+                      fontSize: '0.72rem',
+                      fontWeight: '700',
+                    }}>✨ Great Match</span>
                   )}
                 </div>
                 {totalPhotos > 1 && (

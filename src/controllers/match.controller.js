@@ -38,7 +38,7 @@ async function getMatches(req, res, next) {
        END
        JOIN users u ON u.id = p.user_id
        WHERE (m.user1_id = $1 OR m.user2_id = $1)
-         AND u.is_banned = false
+         AND u.is_banned = 0
        ORDER BY last_message_at DESC NULLS LAST, m.created_at DESC`,
       [userId]
     );
