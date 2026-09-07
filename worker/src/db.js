@@ -55,48 +55,13 @@ export function processQuery(text, params = []) {
  */
 export async function query(db, text, params = []) {
   try {
-    const upperSql = text.toUpperCase();
-
-    if (upperSql.includes('RETURNING')) {
-      const parts = text.split(/RETURNING/i);
-      const rawMain = parts[0].trim();
-      const { sql: mainSql, params: mainParams } = processQuery(rawMain, params);
-      const returningCols = parts[1].trim();
-
-      const stmt = db.prepare(mainSql).bind(...mainParams);
-      await stmt.run();
-
-      // Fetch the row we just inserted/updated
-      let rows = [];
-      const tableMatch = rawMain.match(/(?:INSERT INTO|UPDATE)\s+([a-zA-Z0-9_]+)/i);
-      if (tableMatch) {
-        const tableName = tableMatch[1];
-        try {
-          if (params && params.length > 0 && params[0] != null) {
-            try {
-              const result = await db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE id = ?`).bind(params[0]).all();
-              rows = result.results || [];
-            } catch { /* ignore */ }
-          }
-
-          if (rows.length === 0 && params && params.length > 1 && params[1] != null) {
-            try {
-              const result = await db.prepare(`SELECT ${returningCols} FROM ${tableName} WHERE id = ? OR user_id = ?`).bind(params[1], params[1]).all();
-              rows = result.results || [];
-            } catch { /* ignore */ }
-          }
-        } catch { rows = []; }
-      }
-      return { rows };
-    }
-
     const { sql: formattedSql, params: formattedParams } = processQuery(text, params);
     const trimmedUpper = formattedSql.trim().toUpperCase();
 
-    if (trimmedUpper.startsWith('SELECT') || trimmedUpper.startsWith('WITH')) {
+    if (trimmedUpper.startsWith('SELECT') || trimmedUpper.startsWith('WITH') || trimmedUpper.includes('RETURNING')) {
       const stmt = db.prepare(formattedSql).bind(...formattedParams);
       const result = await stmt.all();
-      return { rows: result.results || [] };
+      return { rows: result.results || [], changes: result.meta?.changes || 0 };
     } else {
       const stmt = db.prepare(formattedSql).bind(...formattedParams);
       const result = await stmt.run();

@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "campushinge-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "41538516-876b-4728-96d9-ba8c904fbf33"
 
 # ── R2 Bucket (S3-compatible object storage) ──
 [[r2_buckets]]
@@ -21,14 +21,14 @@ class_name = "ChatRoom"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["ChatRoom"]
+new_sqlite_classes = ["ChatRoom"]
 
 # ── Environment variables (non-secret) ──
 [vars]
-ALLOWED_EMAIL_DOMAINS = "galgotiasuniversity.ac.in,galgotias.org"
+ALLOWED_EMAIL_DOMAINS = "vitbhopal.ac.in,galgotiasuniversity.ac.in,galgotias.org,lpu.co.in,bits-pilani.ac.in"
 JWT_EXPIRES_IN = "7d"
 SUBSCRIPTION_DURATION_DAYS = "35"
-FRONTEND_URL = "https://campushinge.pages.dev"
+FRONTEND_URL = "https://frontend-mu-eight-a3le6bxaal.vercel.app"
 
 # Secrets (set via `wrangler secret put <KEY>`)
 # JWT_SECRET

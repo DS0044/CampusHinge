@@ -43,7 +43,17 @@ profile.post('/', async (c) => {
     await query(db, `UPDATE users SET email_notifications = $1 WHERE id = $2`, [email_notifications ? 1 : 0, userId]);
   }
 
-  return c.json({ success: true, message: 'Profile saved successfully.', data: { profile: { ...rows[0], profile_completed: true } } });
+  const savedProfile = rows[0] || {};
+  let resPhotos = [];
+  try { resPhotos = typeof savedProfile.photos === 'string' ? JSON.parse(savedProfile.photos) : savedProfile.photos || []; } catch {}
+  let resInterests = [];
+  try { resInterests = typeof savedProfile.interests === 'string' ? JSON.parse(savedProfile.interests) : savedProfile.interests || []; } catch {}
+
+  return c.json({
+    success: true,
+    message: 'Profile saved successfully.',
+    data: { profile: { ...savedProfile, photos: resPhotos, interests: resInterests, profile_completed: true } },
+  });
 });
 
 // GET /api/profile — Get my profile
@@ -64,7 +74,23 @@ profile.get('/', async (c) => {
     return c.json({ success: true, data: { profile: null, has_profile: false, profile_completed: false } });
   }
 
-  return c.json({ success: true, data: { profile: { ...row, has_profile: true, profile_completed: Boolean(row.profile_completed) } } });
+  let photos = [];
+  try { photos = typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos || []; } catch {}
+  let interests = [];
+  try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : row.interests || []; } catch {}
+
+  return c.json({
+    success: true,
+    data: {
+      profile: {
+        ...row,
+        photos,
+        interests,
+        has_profile: true,
+        profile_completed: Boolean(row.profile_completed),
+      },
+    },
+  });
 });
 
 // GET /api/profile/:userId — Get another user's profile
@@ -79,7 +105,17 @@ profile.get('/:userId', async (c) => {
   );
 
   if (rows.length === 0) return c.json({ success: false, error: { message: 'Profile not found.' } }, 404);
-  return c.json({ success: true, data: { profile: rows[0] } });
+
+  const row = rows[0];
+  let photos = [];
+  try { photos = typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos || []; } catch {}
+  let interests = [];
+  try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : row.interests || []; } catch {}
+
+  return c.json({
+    success: true,
+    data: { profile: { ...row, photos, interests } },
+  });
 });
 
 // POST /api/profile/upload — Direct photo upload to R2
@@ -88,7 +124,10 @@ profile.post('/upload', async (c) => {
   const r2 = c.env.R2;
 
   const formData = await c.req.formData();
-  const files = formData.getAll('photos') || formData.getAll('photo');
+  let files = formData.getAll('photos');
+  if (!files || files.length === 0) {
+    files = formData.getAll('photo');
+  }
 
   if (!files || files.length === 0) {
     return c.json({ success: false, error: { message: 'No photo file uploaded.' } }, 400);

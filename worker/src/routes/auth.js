@@ -8,10 +8,31 @@ import { sendOTPEmail } from '../services/email.js';
 
 const auth = new Hono();
 
-function isAllowedDomain(email, allowedDomains) {
+const DEFAULT_ALLOWLIST = [
+  { type: 'exact_domain', value: 'vitbhopal.ac.in' },
+  { type: 'exact_email', value: 'international@lnctu.ac.in' },
+  { type: 'exact_domain', value: 'lpu.co.in' },
+  { type: 'wildcard_subdomain', value: 'bits-pilani.ac.in' },
+  { type: 'exact_domain', value: 'galgotiasuniversity.ac.in' },
+  { type: 'exact_domain', value: 'galgotias.org' },
+];
+
+function isAllowedEmail(email, allowedDomains) {
   if (!email || typeof email !== 'string') return false;
-  const domain = email.split('@')[1]?.toLowerCase();
-  if (!domain) return false;
+  const cleanEmail = email.trim().toLowerCase();
+  const atIndex = cleanEmail.lastIndexOf('@');
+  if (atIndex <= 0 || atIndex !== cleanEmail.indexOf('@') || atIndex === cleanEmail.length - 1) {
+    return false;
+  }
+
+  const domain = cleanEmail.slice(atIndex + 1);
+
+  for (const rule of DEFAULT_ALLOWLIST) {
+    if (rule.type === 'exact_email' && cleanEmail === rule.value) return true;
+    if (rule.type === 'exact_domain' && domain === rule.value) return true;
+    if (rule.type === 'wildcard_subdomain' && (domain === rule.value || domain.endsWith('.' + rule.value))) return true;
+  }
+
   const domains = (allowedDomains || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
   return domains.includes(domain);
 }
@@ -28,8 +49,8 @@ auth.post('/signup', async (c) => {
   const cleanEmail = (email || '').trim().toLowerCase();
   const db = c.env.DB;
 
-  if (!isAllowedDomain(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
-    return c.json({ success: false, error: { message: 'Email domain not allowed. Please use your campus email.' } }, 403);
+  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
+    return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
   }
 
   // Rate limit: max 5 OTPs in 5 min
@@ -71,8 +92,8 @@ auth.post('/login', async (c) => {
   const cleanEmail = (email || '').trim().toLowerCase();
   const db = c.env.DB;
 
-  if (!isAllowedDomain(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
-    return c.json({ success: false, error: { message: 'Email domain not allowed. Please use your campus email.' } }, 403);
+  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
+    return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
   }
 
   const { rows: rateRows } = await query(db,
