@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { notificationApi, swipeApi, subscriptionApi } from '../api';
+import { notificationApi, swipeApi, subscriptionApi, getPhotoUrl } from '../api';
 
 export default function GatedProfileModal({ targetUserId, onClose, onMatchCreated }) {
   const navigate = useNavigate();
@@ -154,7 +154,7 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
               >
                 {profile.primary_photo || profile.photos?.[0] ? (
                   <img
-                    src={profile.primary_photo || profile.photos[0]}
+                    src={getPhotoUrl(profile.primary_photo || profile.photos[0])}
                     alt={profile.has_matched ? profile.name : 'Someone'}
                     style={{
                       width: '100%',
@@ -331,7 +331,7 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                       {profile.photos.slice(1).map((photoUrl, idx) => (
                         <img
                           key={idx}
-                          src={photoUrl}
+                          src={getPhotoUrl(photoUrl)}
                           alt={`${profile.name} photo ${idx + 2}`}
                           style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
                         />

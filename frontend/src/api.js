@@ -1,4 +1,30 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
+export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+
+export function getPhotoUrl(photo) {
+  if (!photo || typeof photo !== 'string') return '';
+  const trimmed = photo.trim();
+  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('http://localhost:3000/uploads/')) {
+    return `${API_ORIGIN}/cdn/${trimmed.replace('http://localhost:3000/uploads/', 'uploads/')}`;
+  }
+  if (trimmed.startsWith('http://localhost:3000/cdn/')) {
+    return `${API_ORIGIN}${trimmed.replace('http://localhost:3000', '')}`;
+  }
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/cdn/')) {
+    return `${API_ORIGIN}${trimmed}`;
+  }
+  if (trimmed.startsWith('/uploads/')) {
+    return `${API_ORIGIN}/cdn${trimmed}`;
+  }
+  if (trimmed.startsWith('uploads/')) {
+    return `${API_ORIGIN}/cdn/${trimmed}`;
+  }
+  return `${API_ORIGIN}/cdn/uploads/${trimmed}`;
+}
 
 function getToken() {
   return localStorage.getItem('token');

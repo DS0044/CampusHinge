@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { profileApi, logout } from '../api';
+import { profileApi, logout, getPhotoUrl } from '../api';
 import { PREDEFINED_INTERESTS, MAX_INTERESTS_LIMIT } from '../constants/interests';
 
 const GENDER_OPTIONS = [
@@ -86,7 +86,7 @@ export default function ProfileSetupPage() {
             parsedPhotos.map((url, idx) => ({
               id: `existing-${idx}-${Date.now()}`,
               url,
-              previewUrl: url,
+              previewUrl: getPhotoUrl(url),
             }))
           );
         }
@@ -544,7 +544,7 @@ export default function ProfileSetupPage() {
                   }}
                 >
                   <img
-                    src={item.previewUrl}
+                    src={getPhotoUrl(item.previewUrl || item.url)}
                     alt={`Photo ${idx + 1}`}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { notificationApi, swipeApi } from '../api';
+import { notificationApi, swipeApi, getPhotoUrl } from '../api';
 import GatedProfileModal from '../components/GatedProfileModal';
 
 export default function NotificationsPage() {
@@ -88,12 +88,7 @@ export default function NotificationsPage() {
     }
   }
 
-  function getPhotoUrl(photo) {
-    if (!photo) return null;
-    if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
-    if (photo.startsWith('/')) return `http://localhost:3000${photo}`;
-    return `http://localhost:3000/uploads/${photo}`;
-  }
+
 
   function getRelativeTime(timestamp) {
     if (!timestamp) return '';

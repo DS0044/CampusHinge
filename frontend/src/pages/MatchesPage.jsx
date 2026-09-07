@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { matchApi } from '../api';
+import { matchApi, getPhotoUrl } from '../api';
 import { onSocketEvent } from '../socketManager';
 
 export default function MatchesPage() {
@@ -105,7 +105,7 @@ export default function MatchesPage() {
                   onClick={() => navigate(`/chat/${matchId}`)}
                 >
                   {avatarPhoto ? (
-                    <img src={avatarPhoto} alt={name} className="avatar" />
+                    <img src={getPhotoUrl(avatarPhoto)} alt={name} className="avatar" />
                   ) : (
                     <div className="avatar">
                       {initial}

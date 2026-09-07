@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getPhotoUrl } from '../api';
 
 export default function DiscoverProfileModal({ profile, myInterests = [], onClose, onSwipe }) {
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -101,7 +102,7 @@ export default function DiscoverProfileModal({ profile, myInterests = [], onClos
         <div style={{ position: 'relative', width: '100%', aspectRatio: '3/4', background: '#07090e' }}>
           {totalPhotos > 0 ? (
             <img
-              src={photosList[photoIndex]}
+              src={getPhotoUrl(photosList[photoIndex])}
               alt={`${profile.name} photo ${photoIndex + 1}`}
               style={{
                 width: '100%',

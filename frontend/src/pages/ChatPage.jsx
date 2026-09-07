@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { messageApi, subscriptionApi } from '../api';
+import { messageApi, subscriptionApi, getPhotoUrl } from '../api';
 import {
   joinMatch,
   leaveMatch,
@@ -323,7 +323,7 @@ export default function ChatPage() {
         <div className="avatar" style={{ width: 42, height: 42, overflow: 'hidden' }}>
           {matchInfo?.partner_photo ? (
             <img
-              src={matchInfo.partner_photo.startsWith('http') ? matchInfo.partner_photo : `http://localhost:3000/uploads/${matchInfo.partner_photo}`}
+              src={getPhotoUrl(matchInfo.partner_photo)}
               alt={matchInfo.partner_name}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />

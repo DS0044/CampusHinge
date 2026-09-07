@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { discoverApi, swipeApi, profileApi, devApi } from '../api';
+import { discoverApi, swipeApi, profileApi, devApi, getPhotoUrl } from '../api';
 import DiscoverProfileModal from '../components/DiscoverProfileModal';
 
 export default function DiscoverPage() {
@@ -163,7 +163,7 @@ export default function DiscoverPage() {
             {/* Main Photo Display */}
             {totalPhotos > 0 ? (
               <img
-                src={photos[cardPhotoIndex] || photos[0]}
+                src={getPhotoUrl(photos[cardPhotoIndex] || photos[0])}
                 alt={currentProfile.name}
                 className="swipe-card-img"
               />

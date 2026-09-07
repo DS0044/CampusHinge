@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/cdn/(.*)", "destination": "https://campushinge-api.campushinge-worker.workers.dev/cdn/$1" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
