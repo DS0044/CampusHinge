@@ -11,4 +11,5 @@ Thumbs.db
 campusapp.db*
 uploads/
 .agents/
+.vercel/
 
