@@ -89,9 +89,11 @@ const { initializeSocket } = require('./services/socket.service');
 initializeSocket(io);
 
 // ── Start server ──
-server.listen(env.PORT, () => {
-  console.log(`🚀  CampusApp API running on port ${env.PORT} [${env.NODE_ENV}]`);
-});
+if (require.main === module) {
+  server.listen(env.PORT, () => {
+    console.log(`🚀  CampusApp API running on port ${env.PORT} [${env.NODE_ENV}]`);
+  });
+}
 
 module.exports = { app, server, io };
 

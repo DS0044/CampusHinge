@@ -1,8 +1,8 @@
 const { Router } = require('express');
-const { signup, login, verifyOtp } = require('../controllers/auth.controller');
+const { signup, login, verifyOtp, resendOtp } = require('../controllers/auth.controller');
 const { validate } = require('../middleware/validate');
-const { signupSchema, verifyOtpSchema } = require('../validators/auth.schema');
-const { otpRateLimiter } = require('../middleware/rateLimiter');
+const { signupSchema, verifyOtpSchema, resendOtpSchema } = require('../validators/auth.schema');
+const { otpRateLimiter, resendOtpRateLimiter } = require('../middleware/rateLimiter');
 
 const router = Router();
 
@@ -14,5 +14,8 @@ router.post('/login', otpRateLimiter, validate(signupSchema), login);
 
 // POST /api/auth/verify-otp — verify OTP and receive JWT
 router.post('/verify-otp', validate(verifyOtpSchema), verifyOtp);
+
+// POST /api/auth/resend-otp — resend OTP with cooldown and rate limiting
+router.post('/resend-otp', resendOtpRateLimiter, validate(resendOtpSchema), resendOtp);
 
 module.exports = router;

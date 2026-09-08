@@ -2,7 +2,14 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const env = require('../config/env');
 const { isAllowedDomain } = require('../config/allowedDomains');
-const { createOTP, verifyOTP, checkOTPRateLimit } = require('../services/otp.service');
+const {
+  createOTP,
+  verifyOTP,
+  checkOTPRateLimit,
+  checkOTPCooldown,
+  checkResendRateLimit,
+  invalidatePreviousOTPs,
+} = require('../services/otp.service');
 const { sendOTPEmail } = require('../services/email.service');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -251,4 +258,60 @@ async function verifyOtp(req, res, next) {
   }
 }
 
-module.exports = { signup, login, verifyOtp };
+/**
+ * POST /api/auth/resend-otp
+ * Enforces 30s cooldown and hourly abuse limits, invalidates prior OTPs, and issues a new OTP.
+ */
+async function resendOtp(req, res, next) {
+  try {
+    const { email } = req.body;
+    const cleanEmail = (email || '').trim().toLowerCase();
+    console.log(`\n🔄  [AUTH RESEND] ── Request received for: ${cleanEmail}`);
+
+    // 1. Validate domain against allowlist
+    console.log(`🔄  [AUTH RESEND] Step 1: Checking domain allowlist…`);
+    if (!isAllowedDomain(cleanEmail)) {
+      console.warn(`🔄  [AUTH RESEND] ✗ Domain rejected for: ${cleanEmail}`);
+      throw new AppError("This email isn't eligible for verification", 403);
+    }
+    console.log(`🔄  [AUTH RESEND] ✓ Domain allowed`);
+
+    // 2. Check DB-level hourly rate limit & 30-second cooldown
+    console.log(`🔄  [AUTH RESEND] Step 2: Checking rate limit & cooldown…`);
+    await checkResendRateLimit(cleanEmail);
+    await checkOTPCooldown(cleanEmail);
+    console.log(`🔄  [AUTH RESEND] ✓ Rate limit & cooldown OK`);
+
+    // 3. Invalidate previous OTPs for that user
+    console.log(`🔄  [AUTH RESEND] Step 3: Invalidating previous OTPs…`);
+    await invalidatePreviousOTPs(cleanEmail);
+    console.log(`🔄  [AUTH RESEND] ✓ Previous OTPs invalidated`);
+
+    // 4. Generate new OTP
+    console.log(`🔄  [AUTH RESEND] Step 4: Generating new OTP…`);
+    const otp = await createOTP(cleanEmail);
+    console.log(`🔄  [AUTH RESEND] ✓ New OTP generated`);
+
+    // 5. Send email
+    console.log(`🔄  [AUTH RESEND] Step 5: Sending OTP email…`);
+    await sendOTPEmail(cleanEmail, otp);
+    console.log(`🔄  [AUTH RESEND] ✓ Email send step completed`);
+
+    console.log(`🔄  [AUTH RESEND] ── Resend flow complete for ${cleanEmail}\n`);
+    res.status(200).json({
+      success: true,
+      message: 'A new verification code has been sent to your email.',
+      data: {
+        cooldownSeconds: 30,
+      },
+    });
+  } catch (err) {
+    console.error(`🔄  [AUTH RESEND] ✗ Error: ${err.message}`);
+    if (err.details?.retryAfter) {
+      res.set('Retry-After', String(err.details.retryAfter));
+    }
+    next(err);
+  }
+}
+
+module.exports = { signup, login, verifyOtp, resendOtp };

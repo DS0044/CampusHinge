@@ -82,7 +82,12 @@ async function request(method, path, body = null) {
         window.location.replace('/login');
       }
     }
-    throw new Error(data?.error?.message || `Request failed (${res.status})`);
+    const err = new Error(data?.error?.message || `Request failed (${res.status})`);
+    err.status = res.status;
+    if (data?.error?.retryAfter != null) {
+      err.retryAfter = data.error.retryAfter;
+    }
+    throw err;
   }
   return data;
 }
@@ -92,6 +97,7 @@ export const authApi = {
   login: (email) => request('POST', '/auth/login', { email }),
   signup: (email) => request('POST', '/auth/signup', { email }),
   verifyOtp: (email, code) => request('POST', '/auth/verify-otp', { email, code }),
+  resendOtp: (email) => request('POST', '/auth/resend-otp', { email }),
 };
 
 // ── Profile ──

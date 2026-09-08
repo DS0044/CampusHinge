@@ -122,6 +122,62 @@ auth.post('/login', async (c) => {
   return c.json({ success: true, message: 'Verification code sent to your email. It expires in 10 minutes.' });
 });
 
+// POST /api/auth/resend-otp
+auth.post('/resend-otp', async (c) => {
+  const { email } = await c.req.json();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const db = c.env.DB;
+
+  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
+    return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
+  }
+
+  // Rate limit: max 5 resends in 1 hour
+  const { rows: hourRows } = await query(db,
+    `SELECT COUNT(*) AS count FROM otp_codes WHERE email = $1 AND created_at > datetime('now', '-1 hour')`,
+    [cleanEmail]
+  );
+  if (parseInt(hourRows[0]?.count || 0) >= 5) {
+    return c.json({ success: false, error: { message: 'Too many OTP resend requests. Please try again after 1 hour.', retryAfter: 3600 } }, 429);
+  }
+
+  // 30-second cooldown check
+  const { rows: latestRows } = await query(db,
+    `SELECT created_at FROM otp_codes WHERE email = $1 ORDER BY created_at DESC LIMIT 1`,
+    [cleanEmail]
+  );
+  if (latestRows.length > 0) {
+    const rawCreatedAt = latestRows[0].created_at;
+    const lastSentTime = new Date(rawCreatedAt.includes('T') ? rawCreatedAt : rawCreatedAt.replace(' ', 'T') + 'Z').getTime();
+    const elapsedSeconds = Math.floor((Date.now() - lastSentTime) / 1000);
+    if (elapsedSeconds < 30) {
+      const retryAfter = 30 - Math.max(0, elapsedSeconds);
+      c.header('Retry-After', String(retryAfter));
+      return c.json({
+        success: false,
+        error: {
+          message: `Please wait ${retryAfter} second${retryAfter === 1 ? '' : 's'} before requesting another OTP.`,
+          retryAfter,
+        },
+      }, 429);
+    }
+  }
+
+  // Invalidate previous OTPs
+  await query(db, `UPDATE otp_codes SET used = 1 WHERE email = $1 AND used = 0`, [cleanEmail]);
+
+  // Generate & store OTP
+  const otp = generateOTP();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const otpId = crypto.randomUUID();
+  await query(db, `INSERT INTO otp_codes (id, email, code, expires_at, created_at) VALUES ($1, $2, $3, $4, datetime('now'))`, [otpId, cleanEmail, otp, expiresAt]);
+
+  // Send email
+  await sendOTPEmail(c.env, cleanEmail, otp);
+
+  return c.json({ success: true, message: 'A new verification code has been sent to your email.', data: { cooldownSeconds: 30 } });
+});
+
 // POST /api/auth/verify-otp
 auth.post('/verify-otp', async (c) => {
   const { email, code } = await c.req.json();
@@ -140,9 +196,18 @@ auth.post('/verify-otp', async (c) => {
   }
 
   const otp = otpRows[0];
+  if (String(otp.code).trim() !== cleanCode) {
+    const { rows: olderRows } = await query(db,
+      `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND id != $3`,
+      [cleanEmail, cleanCode, otp.id]
+    );
+    if (olderRows.length > 0) {
+      return c.json({ success: false, error: { message: 'This code has expired, please use the latest one sent.' } }, 400);
+    }
+    return c.json({ success: false, error: { message: 'Invalid OTP. Please check and try again.' } }, 400);
+  }
   if (otp.used) return c.json({ success: false, error: { message: 'This OTP has already been used.' } }, 400);
   if (new Date() > new Date(otp.expires_at)) return c.json({ success: false, error: { message: 'OTP has expired. Please request a new one.' } }, 400);
-  if (String(otp.code).trim() !== cleanCode) return c.json({ success: false, error: { message: 'Invalid OTP. Please check and try again.' } }, 400);
 
   // Mark as used
   await query(db, `UPDATE otp_codes SET used = 1 WHERE id = $1`, [otp.id]);

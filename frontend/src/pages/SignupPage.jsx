@@ -23,9 +23,11 @@ export default function SignupPage() {
     setSuccess('');
     setLoading(true);
     try {
+      const cleanEmail = email.trim().toLowerCase();
       const res = await authApi.signup(email);
+      sessionStorage.setItem(`otp_sent_at_${cleanEmail}`, Date.now().toString());
       setSuccess(res.message || 'OTP sent! Check your email.');
-      setTimeout(() => navigate('/verify-otp', { state: { email, isLogin: false } }), 800);
+      setTimeout(() => navigate('/verify-otp', { state: { email: cleanEmail, isLogin: false } }), 800);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -82,11 +82,22 @@ const verifyOtpSchema = z.object({
     .regex(/^\d{6}$/, 'OTP must contain only digits'),
 });
 
+const resendOtpSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .email('Invalid email format')
+    .transform((v) => v.toLowerCase().trim())
+    .refine((val) => isEmailAllowed(val), {
+      message: "This email isn't eligible for verification",
+    }),
+});
+
 module.exports = {
   ALLOWLIST,
   allowlist: ALLOWLIST,
   isEmailAllowed,
   signupSchema,
   verifyOtpSchema,
+  resendOtpSchema,
 };
 

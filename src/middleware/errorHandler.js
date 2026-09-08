@@ -15,6 +15,7 @@ function errorHandler(err, _req, res, _next) {
     success: false,
     error: {
       message,
+      ...(err.details || {}),
       ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
     },
   });
@@ -24,10 +25,13 @@ function errorHandler(err, _req, res, _next) {
  * Custom operational error class for expected, handleable errors.
  */
 class AppError extends Error {
-  constructor(message, statusCode = 400) {
+  constructor(message, statusCode = 400, details = null) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
+    if (details && typeof details === 'object') {
+      this.details = details;
+    }
     Error.captureStackTrace(this, this.constructor);
   }
 }

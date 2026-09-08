@@ -26,10 +26,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
       const res = await authApi.login(email);
+      sessionStorage.setItem(`otp_sent_at_${cleanEmail}`, Date.now().toString());
       setSuccess(res.message || 'Verification code sent! Check your college email.');
       setTimeout(() => {
-        navigate('/verify-otp', { state: { email, isLogin: true } });
+        navigate('/verify-otp', { state: { email: cleanEmail, isLogin: true } });
       }, 700);
     } catch (err) {
       setError(err.message || 'Failed to send login code.');

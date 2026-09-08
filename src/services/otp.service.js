@@ -9,6 +9,8 @@ function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
+const COOLDOWN_SECONDS = 30;
+
 /**
  * Create and store a new OTP for the given email.
  * OTP expires after 10 minutes.
@@ -16,17 +18,81 @@ function generateOTP() {
 async function createOTP(email) {
   const code = generateOTP();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const now = new Date();
 
   console.log(`🔑  [OTP] Generated code for ${email}: ${code} (expires ${expiresAt.toISOString()})`);
 
   const id = crypto.randomUUID();
   await db.query(
-    `INSERT INTO otp_codes (id, email, code, expires_at) VALUES ($1, $2, $3, $4)`,
-    [id, email.toLowerCase(), code, expiresAt.toISOString()]
+    `INSERT INTO otp_codes (id, email, code, expires_at, created_at) VALUES ($1, $2, $3, $4, $5)`,
+    [id, email.toLowerCase(), code, expiresAt.toISOString(), now.toISOString()]
   );
 
   console.log(`🔑  [OTP] Stored in database successfully for ${email}`);
   return code;
+}
+
+/**
+ * Invalidate all previous unused OTP codes for this user.
+ */
+async function invalidatePreviousOTPs(email) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  await db.query(
+    `UPDATE otp_codes SET used = true WHERE email = $1 AND used = false`,
+    [cleanEmail]
+  );
+  console.log(`🧹  [OTP] Invalidated previous active OTPs for ${cleanEmail}`);
+}
+
+/**
+ * Check if the 30-second cooldown has elapsed since the last OTP was sent to this email.
+ * Rejects with 429 Too Many Requests and retryAfter seconds remaining.
+ */
+async function checkOTPCooldown(email) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const { rows } = await db.query(
+    `SELECT created_at FROM otp_codes WHERE email = $1 ORDER BY created_at DESC LIMIT 1`,
+    [cleanEmail]
+  );
+
+  if (rows.length === 0) return;
+
+  const rawCreatedAt = rows[0].created_at;
+  const lastSentTime = new Date(
+    rawCreatedAt.includes('T') ? rawCreatedAt : rawCreatedAt.replace(' ', 'T') + 'Z'
+  ).getTime();
+  const elapsedSeconds = Math.floor((Date.now() - lastSentTime) / 1000);
+
+  if (elapsedSeconds < COOLDOWN_SECONDS) {
+    const retryAfter = COOLDOWN_SECONDS - Math.max(0, elapsedSeconds);
+    console.warn(`⏳  [OTP COOLDOWN] Cooldown active for ${cleanEmail}: ${retryAfter}s remaining`);
+    throw new AppError(
+      `Please wait ${retryAfter} second${retryAfter === 1 ? '' : 's'} before requesting another OTP.`,
+      429,
+      { retryAfter }
+    );
+  }
+}
+
+/**
+ * Check rate limit for resending OTP: max 5 resend requests per email per hour.
+ */
+async function checkResendRateLimit(email) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const { rows } = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM otp_codes
+     WHERE email = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+    [cleanEmail]
+  );
+
+  const count = parseInt(rows[0].count, 10);
+  console.log(`🚦  [OTP RESEND RATE] ${cleanEmail} has ${count}/5 OTP requests in last hour`);
+
+  if (count >= 5) {
+    console.warn(`🚦  [OTP RESEND RATE] Blocked — too many OTP requests for ${cleanEmail}`);
+    throw new AppError('Too many OTP resend attempts. Please try again after 1 hour.', 429, { retryAfter: 3600 });
+  }
 }
 
 /**
@@ -40,7 +106,7 @@ async function verifyOTP(email, code) {
   console.log(`🔍  [OTP VERIFY] Checking code for ${cleanEmail} (code="${cleanCode}")…`);
 
   const { rows } = await db.query(
-    `SELECT id, code, expires_at, used
+    `SELECT id, code, expires_at, used, created_at
      FROM otp_codes
      WHERE email = $1
      ORDER BY created_at DESC
@@ -55,6 +121,22 @@ async function verifyOTP(email, code) {
 
   const otp = rows[0];
 
+  // If code does not match the latest OTP, check if it was an older/invalidated OTP for this user
+  if (String(otp.code).trim() !== cleanCode) {
+    const { rows: olderRows } = await db.query(
+      `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND id != $3`,
+      [cleanEmail, cleanCode, otp.id]
+    );
+
+    if (olderRows.length > 0) {
+      console.warn(`🔍  [OTP VERIFY] Expired/old OTP entered for ${cleanEmail}: got "${cleanCode}"`);
+      throw new AppError('This code has expired, please use the latest one sent.', 400);
+    }
+
+    console.warn(`🔍  [OTP VERIFY] Wrong code for ${cleanEmail}: got "${cleanCode}", expected "${otp.code}"`);
+    throw new AppError('Invalid OTP. Please check and try again.', 400);
+  }
+
   if (otp.used) {
     console.warn(`🔍  [OTP VERIFY] OTP already used for ${cleanEmail} (id=${otp.id})`);
     throw new AppError('This OTP has already been used. Please request a new one.', 400);
@@ -63,11 +145,6 @@ async function verifyOTP(email, code) {
   if (new Date() > new Date(otp.expires_at)) {
     console.warn(`🔍  [OTP VERIFY] OTP expired for ${cleanEmail} (expired at ${otp.expires_at})`);
     throw new AppError('OTP has expired. Please request a new one.', 400);
-  }
-
-  if (String(otp.code).trim() !== cleanCode) {
-    console.warn(`🔍  [OTP VERIFY] Wrong code for ${cleanEmail}: got "${cleanCode}", expected "${otp.code}"`);
-    throw new AppError('Invalid OTP. Please check and try again.', 400);
   }
 
   // Mark as used
@@ -98,4 +175,12 @@ async function checkOTPRateLimit(email) {
   }
 }
 
-module.exports = { createOTP, verifyOTP, checkOTPRateLimit };
+module.exports = {
+  COOLDOWN_SECONDS,
+  createOTP,
+  verifyOTP,
+  checkOTPRateLimit,
+  checkOTPCooldown,
+  checkResendRateLimit,
+  invalidatePreviousOTPs,
+};

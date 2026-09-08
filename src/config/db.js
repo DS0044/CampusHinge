@@ -39,8 +39,10 @@ function processQuery(text, params = []) {
     }
   }
 
-  outSql = outSql.replace(/NOW\(\)\s*-\s*INTERVAL\s*'(\d+)\s*minutes'/gi, "datetime('now', '-$1 minutes')");
-  outSql = outSql.replace(/NOW\(\)\s*\+\s*INTERVAL\s*'(\d+)\s*days'/gi, "datetime('now', '+$1 days')");
+  outSql = outSql.replace(/NOW\(\)\s*-\s*INTERVAL\s*'(\d+)\s*minutes?'/gi, "datetime('now', '-$1 minutes')");
+  outSql = outSql.replace(/NOW\(\)\s*-\s*INTERVAL\s*'(\d+)\s*hours?'/gi, "datetime('now', '-$1 hours')");
+  outSql = outSql.replace(/NOW\(\)\s*-\s*INTERVAL\s*'(\d+)\s*seconds?'/gi, "datetime('now', '-$1 seconds')");
+  outSql = outSql.replace(/NOW\(\)\s*\+\s*INTERVAL\s*'(\d+)\s*days?'/gi, "datetime('now', '+$1 days')");
   outSql = outSql.replace(/NOW\(\)/gi, "datetime('now')");
 
   return { sql: outSql, params: newParams };
