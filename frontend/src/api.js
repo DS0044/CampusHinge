@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 
 export function getPhotoUrl(photo) {

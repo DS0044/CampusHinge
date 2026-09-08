@@ -127,6 +127,20 @@ try {
       FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS swipe_preferences (
+      user_id TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      likes INTEGER DEFAULT 0,
+      total INTEGER DEFAULT 0,
+      PRIMARY KEY (user_id, tag)
+    );
+
+    CREATE TABLE IF NOT EXISTS interest_popularity (
+      tag TEXT PRIMARY KEY,
+      user_count INTEGER DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
   try {
     db.exec(`ALTER TABLE users ADD COLUMN email_notifications INTEGER DEFAULT 1;`);
@@ -135,6 +149,11 @@ try {
   }
   try {
     db.exec(`ALTER TABLE users ADD COLUMN profile_completed INTEGER DEFAULT 0;`);
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN last_active TEXT;`);
   } catch (e) {
     // Column already exists
   }
