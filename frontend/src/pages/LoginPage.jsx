@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authApi, setToken } from '../api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -225,6 +225,13 @@ export default function LoginPage() {
         <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
           🔒 Only students with verified college Google accounts can join.
         </p>
+      </div>
+
+      {/* Legal Links */}
+      <div className="legal-footer" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+        <Link to="/privacy">Privacy Policy</Link>
+        <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>•</span>
+        <Link to="/terms">Terms of Service</Link>
       </div>
 
       {/* Spin animation for loading */}

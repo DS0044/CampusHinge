@@ -8,6 +8,8 @@ import ChatPage from './pages/ChatPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import BottomNav from './components/BottomNav';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import { initSocket, destroySocket } from './socketManager';
 
 /**
@@ -45,6 +47,8 @@ function App() {
           {/* Legacy routes redirect to login (Google handles signup now) */}
           <Route path="/signup" element={<Navigate to="/login" replace />} />
           <Route path="/verify-otp" element={<Navigate to="/login" replace />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
           
           <Route path="/profile-setup" element={
             <ProtectedRoute requireCompletedProfile={false}>

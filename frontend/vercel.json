@@ -2,5 +2,19 @@
   "rewrites": [
     { "source": "/cdn/(.*)", "destination": "https://campushinge-api.campushinge-worker.workers.dev/cdn/$1" },
     { "source": "/(.*)", "destination": "/" }
+  ],
+  "headers": [
+    {
+      "source": "/privacy.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/terms.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
   ]
 }
