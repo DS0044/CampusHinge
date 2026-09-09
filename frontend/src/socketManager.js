@@ -109,18 +109,51 @@ function scheduleReconnect() {
 }
 
 function dispatchEvent(type, data) {
+  // ── Normalize Durable Object events for ChatPage compatibility ──
+
+  if (type === 'new_message' && data.message) {
+    // DO sends: { type: 'new_message', message: { id, match_id, sender_id, content, created_at } }
+    // ChatPage expects: the message object directly (with match_id on it)
+    const handlers = eventListeners.get('new_message');
+    if (handlers) {
+      for (const handler of handlers) {
+        try { handler(data.message); } catch (e) { console.error('Event handler error:', e); }
+      }
+    }
+    return;
+  }
+
+  if (type === 'typing' || type === 'stop_typing') {
+    // DO sends: { type: 'typing', userId } / { type: 'stop_typing', userId }
+    // ChatPage listens for 'user_typing' / 'user_stop_typing' with { userId, matchId }
+    const mappedType = type === 'typing' ? 'user_typing' : 'user_stop_typing';
+
+    // Determine matchId from current rooms (since DO only broadcasts to same-room users,
+    // we know the typing is for whichever room we're in)
+    const matchId = currentRooms.size === 1
+      ? currentRooms.values().next().value
+      : data.matchId || null;
+
+    const payload = { userId: data.userId, matchId };
+
+    // Dispatch under both the raw name and the mapped name
+    for (const eventName of [type, mappedType]) {
+      const handlers = eventListeners.get(eventName);
+      if (handlers) {
+        for (const handler of handlers) {
+          try { handler(payload); } catch (e) { console.error('Event handler error:', e); }
+        }
+      }
+    }
+    return;
+  }
+
+  // Default: dispatch raw data for all other event types (message_ack, error, joined, etc.)
   const handlers = eventListeners.get(type);
   if (handlers) {
     for (const handler of handlers) {
       try { handler(data); } catch (e) { console.error('Event handler error:', e); }
     }
-  }
-
-  // Map Durable Object events to Socket.io-compatible event names
-  // so existing ChatPage.jsx code works without changes
-  if (type === 'new_message') {
-    const handlers2 = eventListeners.get('new_message');
-    // Already dispatched above
   }
 }
 
