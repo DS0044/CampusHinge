@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { discoverApi, swipeApi, profileApi, devApi, getPhotoUrl } from '../api';
+import { discoverApi, swipeApi, profileApi, getPhotoUrl } from '../api';
 import DiscoverProfileModal from '../components/DiscoverProfileModal';
 
 export default function DiscoverPage() {
@@ -106,18 +106,6 @@ export default function DiscoverPage() {
     setCardPhotoIndex((prev) => (prev < totalPhotos - 1 ? prev + 1 : 0));
   };
 
-  async function handleResetSwipes() {
-    setLoading(true);
-    setError('');
-    try {
-      await devApi.resetSwipes();
-      await loadDeckAndProfile();
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -144,13 +132,6 @@ export default function DiscoverPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxWidth: '240px', margin: '0 auto' }}>
             <button className="btn-primary" onClick={loadDeckAndProfile}>
               Refresh Deck
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={handleResetSwipes}
-              style={{ fontSize: '0.82rem', border: '1px dashed var(--primary-pink)', color: '#fbcfe8' }}
-            >
-              🔄 Reset Swipes (Dev)
             </button>
           </div>
         </div>

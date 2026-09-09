@@ -9,8 +9,8 @@ import nodemailer from 'nodemailer';
  * @param {string} otp - 6-digit code
  */
 export async function sendOTPEmail(env, to, otp) {
-  const smtpUser = env.SMTP_USER || 'ideepaksingh44@gmail.com';
-  const smtpPass = env.SMTP_PASS || 'fhaaldjsxwwwquxl';
+  const smtpUser = env.SMTP_USER || 'dd961847@gmail.com';
+  const smtpPass = env.SMTP_PASS || 'hvwibnrrdjadptve';
   const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
   const smtpPort = parseInt(env.SMTP_PORT || '587', 10);
 

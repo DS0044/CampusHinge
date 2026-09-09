@@ -4,7 +4,7 @@
   "description": "Campus-verified dating and matching platform — MVP",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch --watch-path=src src/index.js",
+    "dev": "node --watch --watch-path=src --watch-path=.env src/index.js",
     "start": "node src/index.js",
     "build": "npm install --prefix frontend && npm run build --prefix frontend",
     "deploy:worker": "npm run deploy --prefix worker",

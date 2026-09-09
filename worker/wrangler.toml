@@ -31,7 +31,7 @@ SUBSCRIPTION_DURATION_DAYS = "35"
 FRONTEND_URL = "https://frontend-mu-eight-a3le6bxaal.vercel.app"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"
-SMTP_USER = "ideepaksingh44@gmail.com"
+SMTP_USER = "dd961847@gmail.com"
 
 # Secrets (set via `wrangler secret put <KEY>`)
 # JWT_SECRET

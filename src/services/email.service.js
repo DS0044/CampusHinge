@@ -8,35 +8,46 @@ const env = require('../config/env');
  * it logs emails to console instead so you can still test the OTP flow.
  */
 
-let transporter;
+const dotenv = require('dotenv');
 
-function isSmtpConfigured() {
-  return (
-    env.SMTP_HOST &&
-    env.SMTP_USER &&
-    env.SMTP_PASS &&
-    env.SMTP_USER !== 'your_email@gmail.com' &&
-    env.SMTP_PASS !== 'your_app_password'
-  );
-}
+let transporter = null;
+let currentPass = null;
+let currentUser = null;
 
 function getTransporter() {
-  if (transporter) return transporter;
+  dotenv.config({ override: true });
+  const host = process.env.SMTP_HOST || env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || env.SMTP_PORT, 10) || 587;
+  const user = process.env.SMTP_USER || env.SMTP_USER;
+  const pass = process.env.SMTP_PASS || env.SMTP_PASS;
 
-  if (!isSmtpConfigured()) {
+  if (
+    !host ||
+    !user ||
+    !pass ||
+    user === 'your_email@gmail.com' ||
+    pass === 'your_app_password'
+  ) {
     console.warn('⚠️  SMTP not configured (credentials are placeholders) — emails will be logged to console.');
+    transporter = null;
     return null;
   }
 
-  console.log(`📬  [EMAIL] Creating SMTP transporter: host=${env.SMTP_HOST}, port=${env.SMTP_PORT}, user=${env.SMTP_USER}`);
+  if (transporter && currentPass === pass && currentUser === user) {
+    return transporter;
+  }
+
+  console.log(`📬  [EMAIL] Creating SMTP transporter: host=${host}, port=${port}, user=${user}`);
+  currentPass = pass;
+  currentUser = user;
 
   transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_PORT === 465,
+    host,
+    port,
+    secure: port === 465,
     auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
+      user,
+      pass,
     },
   });
 
@@ -52,9 +63,10 @@ async function sendOTPEmail(to, otp) {
   console.log(`📧  [EMAIL] Preparing to send OTP email to ${to}…`);
 
   const transport = getTransporter();
+  const fromUser = process.env.SMTP_USER || env.SMTP_USER || 'noreply@campusapp.com';
 
   const mailOptions = {
-    from: `"CampusApp" <${env.SMTP_USER || 'noreply@campusapp.com'}>`,
+    from: `"CampusApp" <${fromUser}>`,
     to,
     subject: 'Your CampusApp Verification Code',
     text: `Your verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share it with anyone.`,
@@ -92,8 +104,13 @@ async function sendOTPEmail(to, otp) {
   } catch (err) {
     console.error(`❌  [EMAIL] Failed to send to ${to}:`, err.message);
     console.error(`❌  [EMAIL] Full error:`, err);
-    // Don't throw — let the OTP flow continue so the user can still test with console OTP
-    console.warn(`⚠️  [EMAIL] Email failed but OTP was generated. Check console logs for the code.`);
+    // Invalidate cached transporter on failure so next attempt gets fresh connection/credentials
+    transporter = null;
+    currentPass = null;
+    currentUser = null;
+    console.warn(`⚠️  [EMAIL] Email delivery failed. Fallback OTP for testing:`);
+    console.log(`   ➜ Recipient: ${to}`);
+    console.log(`   ➜ OTP Code:  ${otp}`);
   }
 }
 
