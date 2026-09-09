@@ -12,7 +12,7 @@ export async function sendOTPEmail(env, to, otp) {
   const smtpUser = env.SMTP_USER || 'dd961847@gmail.com';
   const smtpPass = env.SMTP_PASS || 'hvwibnrrdjadptve';
   const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
-  const smtpPort = parseInt(env.SMTP_PORT || '587', 10);
+  const smtpPort = parseInt(env.SMTP_PORT || '465', 10);
 
   // 1. Try SMTP if configured
   if (smtpUser && smtpPass && smtpPass !== 'your_app_password') {
@@ -27,16 +27,18 @@ export async function sendOTPEmail(env, to, otp) {
 
       await transporter.sendMail({
         from: `"CampusHinge" <${smtpUser}>`,
+        replyTo: smtpUser,
         to,
         subject: `${otp} is your CampusHinge verification code`,
+        text: `Your CampusHinge verification code is: ${otp}\n\nThis code expires in 10 minutes.\nDo not share it with anyone.`,
         html: `
-          <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 24px;">
+          <div style="font-family: sans-serif; max-width: 420px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
             <h2 style="color: #6C63FF; margin-bottom: 8px;">CampusHinge</h2>
-            <p style="color: #333;">Your verification code is:</p>
-            <div style="background: #F3F2FF; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
+            <p style="color: #334155; font-size: 15px;">Your verification code is:</p>
+            <div style="background: #F3F2FF; border-radius: 8px; padding: 18px; text-align: center; margin: 18px 0;">
               <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #6C63FF;">${otp}</span>
             </div>
-            <p style="color: #666; font-size: 14px;">This code expires in 10 minutes.<br/>Do not share it with anyone.</p>
+            <p style="color: #64748b; font-size: 13px; line-height: 1.5;">This code expires in 10 minutes.<br/>Do not share this code with anyone.</p>
           </div>
         `,
       });

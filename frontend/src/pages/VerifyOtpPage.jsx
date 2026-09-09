@@ -245,6 +245,10 @@ export default function VerifyOtpPage() {
               {resendSuccess}
             </p>
           )}
+
+          <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>
+            💡 Tip: If you don't see the email in your inbox, please check your <strong>Junk / Spam</strong> folder or <strong>"Other"</strong> tab.
+          </p>
         </div>
 
         {/* Verification error message */}

@@ -112,46 +112,43 @@ async function verifyOTP(email, code) {
      ORDER BY created_at DESC
      LIMIT 1`,
     [cleanEmail]
+  // Accept any valid unexpired unused OTP code for this email
+  const { rows: validRows } = await db.query(
+    `SELECT id, code, expires_at, used FROM otp_codes 
+     WHERE email = $1 AND code = $2 AND used = false AND expires_at > datetime('now')
+     ORDER BY created_at DESC LIMIT 1`,
+    [cleanEmail, cleanCode]
   );
 
-  if (rows.length === 0) {
-    console.warn(`🔍  [OTP VERIFY] No OTP found in DB for ${cleanEmail}`);
-    throw new AppError('No OTP found for this email. Please request a new one.', 400);
+  if (validRows.length > 0) {
+    // Invalidate all OTPs for this user once verified
+    await db.query(`UPDATE otp_codes SET used = true WHERE email = $1`, [cleanEmail]);
+    console.log(`✅  [OTP VERIFY] Code verified successfully for ${email}`);
+    return true;
   }
 
-  const otp = rows[0];
-
-  // If code does not match the latest OTP, check if it was an older/invalidated OTP for this user
-  if (String(otp.code).trim() !== cleanCode) {
-    const { rows: olderRows } = await db.query(
-      `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND id != $3`,
-      [cleanEmail, cleanCode, otp.id]
-    );
-
-    if (olderRows.length > 0) {
-      console.warn(`🔍  [OTP VERIFY] Expired/old OTP entered for ${cleanEmail}: got "${cleanCode}"`);
-      throw new AppError('This code has expired, please use the latest one sent.', 400);
-    }
-
-    console.warn(`🔍  [OTP VERIFY] Wrong code for ${cleanEmail}: got "${cleanCode}", expected "${otp.code}"`);
-    throw new AppError('Invalid OTP. Please check and try again.', 400);
-  }
-
-  if (otp.used) {
-    console.warn(`🔍  [OTP VERIFY] OTP already used for ${cleanEmail} (id=${otp.id})`);
+  // Check if code was already used
+  const { rows: usedRows } = await db.query(
+    `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND used = true ORDER BY created_at DESC LIMIT 1`,
+    [cleanEmail, cleanCode]
+  );
+  if (usedRows.length > 0) {
+    console.warn(`🔍  [OTP VERIFY] OTP already used for ${cleanEmail}`);
     throw new AppError('This OTP has already been used. Please request a new one.', 400);
   }
 
-  if (new Date() > new Date(otp.expires_at)) {
-    console.warn(`🔍  [OTP VERIFY] OTP expired for ${cleanEmail} (expired at ${otp.expires_at})`);
+  // Check if code expired
+  const { rows: expiredRows } = await db.query(
+    `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND expires_at <= datetime('now') ORDER BY created_at DESC LIMIT 1`,
+    [cleanEmail, cleanCode]
+  );
+  if (expiredRows.length > 0) {
+    console.warn(`🔍  [OTP VERIFY] OTP expired for ${cleanEmail}`);
     throw new AppError('OTP has expired. Please request a new one.', 400);
   }
 
-  // Mark as used
-  await db.query(`UPDATE otp_codes SET used = true WHERE id = $1`, [otp.id]);
-  console.log(`✅  [OTP VERIFY] Code verified successfully for ${email}`);
-
-  return true;
+  console.warn(`🔍  [OTP VERIFY] Invalid OTP entered for ${cleanEmail}: got "${cleanCode}"`);
+  throw new AppError('Invalid OTP. Please check and try again.', 400);
 }
 
 /**

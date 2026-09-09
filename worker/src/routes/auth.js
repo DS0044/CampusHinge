@@ -78,7 +78,7 @@ auth.post('/signup', async (c) => {
   const otp = generateOTP();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const otpId = crypto.randomUUID();
-  await query(db, `INSERT INTO otp_codes (id, email, code, expires_at) VALUES ($1, $2, $3, $4)`, [otpId, cleanEmail, otp, expiresAt]);
+  await query(db, `INSERT INTO otp_codes (id, email, code, expires_at, created_at) VALUES ($1, $2, $3, $4, datetime('now'))`, [otpId, cleanEmail, otp, expiresAt]);
 
   // Send email
   await sendOTPEmail(c.env, cleanEmail, otp);
@@ -115,7 +115,7 @@ auth.post('/login', async (c) => {
   const otp = generateOTP();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const otpId = crypto.randomUUID();
-  await query(db, `INSERT INTO otp_codes (id, email, code, expires_at) VALUES ($1, $2, $3, $4)`, [otpId, cleanEmail, otp, expiresAt]);
+  await query(db, `INSERT INTO otp_codes (id, email, code, expires_at, created_at) VALUES ($1, $2, $3, $4, datetime('now'))`, [otpId, cleanEmail, otp, expiresAt]);
 
   await sendOTPEmail(c.env, cleanEmail, otp);
 
@@ -185,32 +185,41 @@ auth.post('/verify-otp', async (c) => {
   const cleanCode = (code || '').trim();
   const db = c.env.DB;
 
-  // Find latest OTP
-  const { rows: otpRows } = await query(db,
-    `SELECT id, code, expires_at, used FROM otp_codes WHERE email = $1 ORDER BY created_at DESC LIMIT 1`,
-    [cleanEmail]
+  // 1. Accept any valid unexpired unused OTP for this email
+  const { rows: validRows } = await query(db,
+    `SELECT id, code, expires_at, used FROM otp_codes 
+     WHERE email = $1 AND code = $2 AND used = 0 AND expires_at > datetime('now')
+     ORDER BY created_at DESC LIMIT 1`,
+    [cleanEmail, cleanCode]
   );
 
-  if (otpRows.length === 0) {
-    return c.json({ success: false, error: { message: 'No OTP found for this email. Please request a new one.' } }, 400);
-  }
-
-  const otp = otpRows[0];
-  if (String(otp.code).trim() !== cleanCode) {
-    const { rows: olderRows } = await query(db,
-      `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND id != $3`,
-      [cleanEmail, cleanCode, otp.id]
+  let otp;
+  if (validRows.length > 0) {
+    otp = validRows[0];
+  } else {
+    // Check if code was already used
+    const { rows: usedRows } = await query(db,
+      `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND used = 1 ORDER BY created_at DESC LIMIT 1`,
+      [cleanEmail, cleanCode]
     );
-    if (olderRows.length > 0) {
-      return c.json({ success: false, error: { message: 'This code has expired, please use the latest one sent.' } }, 400);
+    if (usedRows.length > 0) {
+      return c.json({ success: false, error: { message: 'This OTP has already been used. Please request a new one.' } }, 400);
     }
+
+    // Check if code expired
+    const { rows: expiredRows } = await query(db,
+      `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND expires_at <= datetime('now') ORDER BY created_at DESC LIMIT 1`,
+      [cleanEmail, cleanCode]
+    );
+    if (expiredRows.length > 0) {
+      return c.json({ success: false, error: { message: 'OTP has expired. Please request a new one.' } }, 400);
+    }
+
     return c.json({ success: false, error: { message: 'Invalid OTP. Please check and try again.' } }, 400);
   }
-  if (otp.used) return c.json({ success: false, error: { message: 'This OTP has already been used.' } }, 400);
-  if (new Date() > new Date(otp.expires_at)) return c.json({ success: false, error: { message: 'OTP has expired. Please request a new one.' } }, 400);
 
-  // Mark as used
-  await query(db, `UPDATE otp_codes SET used = 1 WHERE id = $1`, [otp.id]);
+  // Mark all OTPs for this email as used
+  await query(db, `UPDATE otp_codes SET used = 1 WHERE email = $1`, [cleanEmail]);
 
   // Upsert user
   let { rows: userRows } = await query(db,

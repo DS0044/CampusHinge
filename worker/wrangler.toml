@@ -30,7 +30,7 @@ JWT_EXPIRES_IN = "7d"
 SUBSCRIPTION_DURATION_DAYS = "35"
 FRONTEND_URL = "https://frontend-mu-eight-a3le6bxaal.vercel.app"
 SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = "587"
+SMTP_PORT = "465"
 SMTP_USER = "dd961847@gmail.com"
 
 # Secrets (set via `wrangler secret put <KEY>`)
