@@ -206,14 +206,7 @@ function initializeSocket(io) {
           return;
         }
 
-        // ── Check paywall (from cache, ~0ms after first call) ──
-        const paywallResult = await checkPaywall(matchId, userId, match);
-        if (paywallResult === 'paywall') {
-          if (typeof callback === 'function') {
-            callback({ error: 'paywall', message: 'Message limit reached. Subscribe to send unlimited messages.' });
-          }
-          return;
-        }
+        // No message limit — matched users can chat freely
 
         // ── Generate message object INSTANTLY ──
         const messageId = crypto.randomUUID();

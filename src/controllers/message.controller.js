@@ -124,12 +124,7 @@ async function getMessages(req, res, next) {
 /**
  * POST /api/messages/:matchId
  * Send a message in a match.
- *
- * Paywall logic (server-side enforced):
- * 1. If the match is already unlocked → allow freely
- * 2. If the user has an active subscription → allow and mark match as unlocked
- * 3. If the user has sent < 2 messages in this match → allow (free tier)
- * 4. Otherwise → reject with 402 + paywall flag
+ * Chat is free and unlimited for all matched users.
  */
 async function sendMessage(req, res, next) {
   try {
@@ -140,46 +135,7 @@ async function sendMessage(req, res, next) {
     // Verify participation
     const match = await verifyMatchParticipant(matchId, userId);
 
-    // ── Paywall check ──
-    if (!match.is_unlocked) {
-      // Check if user has active subscription
-      const { rows: userRows } = await db.query(
-        `SELECT subscription_status, subscription_expiry FROM users WHERE id = $1`,
-        [userId]
-      );
-
-      const user = userRows[0];
-      const hasActiveSubscription =
-        user.subscription_status === 'active' &&
-        user.subscription_expiry &&
-        new Date(user.subscription_expiry) > new Date();
-
-      if (hasActiveSubscription) {
-        // Unlock this match permanently
-        await db.query(
-          `UPDATE matches SET is_unlocked = true WHERE id = $1`,
-          [matchId]
-        );
-      } else {
-        // Count messages sent by this user in this match
-        const { rows: countRows } = await db.query(
-          `SELECT COUNT(*) AS count FROM messages WHERE match_id = $1 AND sender_id = $2`,
-          [matchId, userId]
-        );
-
-        const messageCount = parseInt(countRows[0].count, 10);
-
-        if (messageCount >= 2) {
-          return res.status(402).json({
-            success: false,
-            paywall: true,
-            error: {
-              message: 'Message limit reached. Subscribe to send unlimited messages in this match.',
-            },
-          });
-        }
-      }
-    }
+    // No message limit — matched users can chat freely
 
     const crypto = require('crypto');
     const messageId = crypto.randomUUID();

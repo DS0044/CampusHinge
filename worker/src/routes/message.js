@@ -1,5 +1,5 @@
 /**
- * Message Routes — get/send messages with paywall enforcement
+ * Message Routes — get/send messages for matched users
  */
 import { Hono } from 'hono';
 import { query } from '../db.js';
@@ -44,11 +44,11 @@ message.get('/:matchId', async (c) => {
     messages = rows;
   }
 
-  // Get match details & partner info
+  // Get partner info
   const { rows: matchInfo } = await query(db,
-    `SELECT m.id AS match_id, m.is_unlocked, p.name AS partner_name, p.photos AS partner_photos
-     FROM matches m JOIN profiles p ON p.user_id = CASE WHEN m.user1_id = $1 THEN m.user2_id ELSE m.user1_id END
-     WHERE m.id = $2`, [userId, matchId]
+    `SELECT p.name AS partner_name, p.photos AS partner_photos
+     FROM profiles p WHERE p.user_id = CASE WHEN $1 = (SELECT user1_id FROM matches WHERE id = $2) THEN (SELECT user2_id FROM matches WHERE id = $2) ELSE (SELECT user1_id FROM matches WHERE id = $2) END`,
+    [userId, matchId]
   );
 
   const details = matchInfo[0] || {};
@@ -57,14 +57,10 @@ message.get('/:matchId', async (c) => {
     try { const p = JSON.parse(details.partner_photos); partnerPhoto = Array.isArray(p) && p.length > 0 ? p[0] : null; } catch {}
   }
 
-  const { rows: userRows } = await query(db, `SELECT subscription_status, subscription_expiry FROM users WHERE id = $1`, [userId]);
-  const user = userRows[0];
-  const isSubscribed = Boolean(user && user.subscription_status === 'active' && user.subscription_expiry && new Date(user.subscription_expiry) > new Date());
-
   return c.json({
     success: true,
     data: {
-      match: { id: matchId, partner_name: details.partner_name || 'Campus Match', partner_photo: partnerPhoto, is_unlocked: Boolean(details.is_unlocked || isSubscribed) },
+      match: { id: matchId, partner_name: details.partner_name || 'Campus Match', partner_photo: partnerPhoto, is_unlocked: true },
       messages: messages.reverse(),
       has_more: messages.length === limit,
     },
@@ -81,21 +77,7 @@ message.post('/:matchId', async (c) => {
   const matchRow = await verifyMatchParticipant(db, matchId, userId);
   if (!matchRow) return c.json({ success: false, error: { message: 'Match not found.' } }, 404);
 
-  // Paywall check
-  if (!matchRow.is_unlocked) {
-    const { rows: userRows } = await query(db, `SELECT subscription_status, subscription_expiry FROM users WHERE id = $1`, [userId]);
-    const user = userRows[0];
-    const hasSub = user.subscription_status === 'active' && user.subscription_expiry && new Date(user.subscription_expiry) > new Date();
-
-    if (hasSub) {
-      await query(db, `UPDATE matches SET is_unlocked = 1 WHERE id = $1`, [matchId]);
-    } else {
-      const { rows: countRows } = await query(db, `SELECT COUNT(*) AS count FROM messages WHERE match_id = $1 AND sender_id = $2`, [matchId, userId]);
-      if (parseInt(countRows[0].count) >= 2) {
-        return c.json({ success: false, paywall: true, error: { message: 'Message limit reached. Subscribe to send unlimited messages.' } }, 402);
-      }
-    }
-  }
+  // No message limit — matched users can chat freely
 
   const messageId = crypto.randomUUID();
   await query(db,
