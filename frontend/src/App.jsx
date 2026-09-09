@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import VerifyOtpPage from './pages/VerifyOtpPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import DiscoverPage from './pages/DiscoverPage';
 import MatchesPage from './pages/MatchesPage';
@@ -44,8 +42,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to={token ? '/discover' : '/login'} replace />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          {/* Legacy routes redirect to login (Google handles signup now) */}
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
+          <Route path="/verify-otp" element={<Navigate to="/login" replace />} />
           
           <Route path="/profile-setup" element={
             <ProtectedRoute requireCompletedProfile={false}>

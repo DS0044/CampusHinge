@@ -98,6 +98,7 @@ export const authApi = {
   signup: (email) => request('POST', '/auth/signup', { email }),
   verifyOtp: (email, code) => request('POST', '/auth/verify-otp', { email, code }),
   resendOtp: (email) => request('POST', '/auth/resend-otp', { email }),
+  googleSignIn: (credential) => request('POST', '/auth/google', { credential }),
 };
 
 // ── Profile ──
