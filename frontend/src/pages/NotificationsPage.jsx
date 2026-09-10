@@ -148,11 +148,25 @@ export default function NotificationsPage() {
 
       {!loading && notifications.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {notifications.map((notif) => {
+          {[...notifications].sort((a, b) => {
+            const aSuper = a.type === 'super_like';
+            const bSuper = b.type === 'super_like';
+            if (aSuper && !bSuper) return -1;
+            if (!aSuper && bSuper) return 1;
+            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+          }).map((notif) => {
             const isMatched = Boolean(notif.match_id || notif.is_matched);
+            const isSuperLike = notif.type === 'super_like';
             const isRevealed = isMatched || notif.type === 'message';
             const photoUrl = getPhotoUrl(notif.from_user_photo);
-            const displayName = isRevealed ? (notif.from_user_name || notif.real_name || 'Matched Student') : 'Someone';
+            const senderName = notif.from_user_name || notif.real_name || 'Campus Student';
+            const displayName = isRevealed || isSuperLike ? senderName : 'Someone';
+
+            const sharedList = Array.isArray(notif.shared_interests) && notif.shared_interests.length > 0
+              ? notif.shared_interests
+              : (notif.metadata?.shared_interests || []);
+            const sharedCount = notif.shared_interests_count || notif.metadata?.shared_count || sharedList.length;
+            const sharedText = sharedList.join(', ');
 
             return (
               <div
@@ -160,24 +174,58 @@ export default function NotificationsPage() {
                 className="match-card"
                 onClick={() => handleNotificationClick(notif)}
                 style={{
-                  borderColor: !notif.is_read ? 'var(--primary-pink)' : 'var(--glass-border)',
-                  background: !notif.is_read ? 'rgba(255, 64, 129, 0.08)' : 'var(--bg-card)',
+                  borderColor: isSuperLike
+                    ? 'rgba(255, 215, 0, 0.6)'
+                    : !notif.is_read
+                    ? 'var(--primary-pink)'
+                    : 'var(--glass-border)',
+                  background: isSuperLike
+                    ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.12) 0%, rgba(255, 140, 0, 0.08) 100%)'
+                    : !notif.is_read
+                    ? 'rgba(255, 64, 129, 0.08)'
+                    : 'var(--bg-card)',
+                  boxShadow: isSuperLike
+                    ? '0 4px 18px rgba(255, 215, 0, 0.18)'
+                    : 'none',
                   position: 'relative',
                   cursor: 'pointer',
                   transition: 'all 0.25s ease',
                 }}
               >
-                {/* Avatar with heavy blur and lock badge if not matched back */}
+                {/* Pinned / Star Badge for Super Likes */}
+                {isSuperLike && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '12px',
+                      background: 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)',
+                      color: '#000',
+                      fontSize: '0.68rem',
+                      fontWeight: '800',
+                      padding: '0.15rem 0.55rem',
+                      borderRadius: 'var(--radius-full)',
+                      letterSpacing: '0.03em',
+                      boxShadow: '0 2px 8px rgba(255, 215, 0, 0.4)',
+                      zIndex: 5,
+                    }}
+                  >
+                    ⭐ SUPER LIKE
+                  </div>
+                )}
+
+                {/* Avatar with blur if not matched back */}
                 <div
                   className="avatar"
                   style={{
                     overflow: 'hidden',
                     position: 'relative',
                     borderRadius: '50%',
-                    width: '48px',
-                    height: '48px',
+                    width: '50px',
+                    height: '50px',
                     flexShrink: 0,
-                    background: 'var(--primary-gradient)',
+                    border: isSuperLike ? '2px solid #ffd700' : 'none',
+                    background: isSuperLike ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'var(--primary-gradient)',
                   }}
                 >
                   {photoUrl ? (
@@ -194,7 +242,7 @@ export default function NotificationsPage() {
                       }}
                     />
                   ) : (
-                    notif.type === 'message' ? '💬' : '💖'
+                    isSuperLike ? '⭐' : notif.type === 'message' ? '💬' : '💖'
                   )}
 
                   {/* Lock overlay when photo is blurred */}
@@ -211,32 +259,50 @@ export default function NotificationsPage() {
                         pointerEvents: 'none',
                       }}
                     >
-                      🔒
+                      {isSuperLike ? '⭐' : '🔒'}
                     </div>
                   )}
                 </div>
 
-                {/* Info and masked/revealed name */}
+                {/* Info and Super Like description */}
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ color: '#fff', fontSize: '0.98rem', fontWeight: '600' }}>
-                      {notif.type === 'message'
-                        ? `${displayName} sent you a message 💬`
-                        : isRevealed
-                        ? `${displayName} (Matched!) 💖`
-                        : 'Someone liked your profile 💖'}
+                    <h4 style={{ color: isSuperLike ? '#ffd700' : '#fff', fontSize: '0.96rem', fontWeight: '600' }}>
+                      {isSuperLike ? (
+                        `⭐ ${displayName} sent you a Super Like`
+                      ) : notif.type === 'message' ? (
+                        `${displayName} sent you a message 💬`
+                      ) : isRevealed ? (
+                        `${displayName} (Matched!) 💖`
+                      ) : (
+                        'Someone liked your profile 💖'
+                      )}
                     </h4>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.72rem', color: isSuperLike ? 'rgba(255, 215, 0, 0.8)' : 'var(--text-muted)' }}>
                       {getRelativeTime(notif.created_at)}
                     </span>
                   </div>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    {notif.type === 'message'
-                      ? 'Tap to view conversation and reply 💬'
-                      : isRevealed
-                      ? 'Mutual match active! Tap to chat 💬'
-                      : 'Like them back to reveal their full photo & name.'}
-                  </p>
+
+                  {isSuperLike ? (
+                    <div style={{ marginTop: '0.2rem' }}>
+                      <p style={{ fontSize: '0.82rem', color: '#fcd34d', margin: 0, fontWeight: '500' }}>
+                        • {sharedCount} shared interests: <strong style={{ color: '#fff' }}>{sharedText || 'Multiple shared interests'}</strong>
+                      </p>
+                      {!isRevealed && (
+                        <p style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.65)', marginTop: '0.15rem', margin: 0 }}>
+                          Like back to start chatting 💬
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {notif.type === 'message'
+                        ? 'Tap to view conversation and reply 💬'
+                        : isRevealed
+                        ? 'Mutual match active! Tap to chat 💬'
+                        : 'Like them back to reveal their full photo & name.'}
+                    </p>
+                  )}
                 </div>
 
                 {/* Right side action: Chat button if matched, Like Back button if not matched */}
@@ -266,9 +332,14 @@ export default function NotificationsPage() {
                       padding: '0.42rem 0.85rem',
                       borderRadius: 'var(--radius-full)',
                       whiteSpace: 'nowrap',
-                      background: 'var(--primary-gradient)',
-                      boxShadow: '0 2px 10px var(--accent-glow)',
-                      fontWeight: '600',
+                      background: isSuperLike
+                        ? 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)'
+                        : 'var(--primary-gradient)',
+                      color: isSuperLike ? '#000' : '#fff',
+                      boxShadow: isSuperLike
+                        ? '0 2px 12px rgba(255, 215, 0, 0.4)'
+                        : '0 2px 10px var(--accent-glow)',
+                      fontWeight: '700',
                     }}
                   >
                     {likingId === notif.from_user_id ? 'Matching...' : 'Like Back 💖'}
@@ -280,8 +351,8 @@ export default function NotificationsPage() {
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        background: 'var(--primary-pink)',
-                        boxShadow: '0 0 6px var(--accent-glow)',
+                        background: isSuperLike ? '#ffd700' : 'var(--primary-pink)',
+                        boxShadow: isSuperLike ? '0 0 8px rgba(255, 215, 0, 0.8)' : '0 0 6px var(--accent-glow)',
                       }}
                     />
                   )

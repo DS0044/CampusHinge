@@ -137,9 +137,16 @@ async function checkPaywall(matchId, userId, match) {
   if (countEntry.count >= 2) return 'paywall';
   return 'allowed';
 }
+let ioInstance = null;
 
+function emitToUser(userId, event, payload) {
+  if (ioInstance) {
+    ioInstance.to(`user:${userId}`).emit(event, payload);
+  }
+}
 
 function initializeSocket(io) {
+  ioInstance = io;
   // ── Authentication middleware ──
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
@@ -321,4 +328,4 @@ function isUserOnline(userId) {
   return onlineUsers.has(userId) && onlineUsers.get(userId).size > 0;
 }
 
-module.exports = { initializeSocket, isUserOnline };
+module.exports = { initializeSocket, isUserOnline, emitToUser };

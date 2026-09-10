@@ -354,6 +354,29 @@ button:disabled {
   color: #fff;
 }
 
+.action-super-like {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 140, 0, 0.2) 100%);
+  border: 1.5px solid rgba(255, 215, 0, 0.6);
+  color: #ffd700;
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.35);
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.action-super-like:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+  color: #000;
+  transform: scale(1.1);
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
+}
+
+.action-super-like:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
 /* ── Matches List ── */
 .match-grid {
   display: flex;

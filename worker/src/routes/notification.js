@@ -14,14 +14,14 @@ notification.get('/', async (c) => {
   const db = c.env.DB;
 
   const { rows: notifications } = await query(db,
-    `SELECT n.id, n.type, n.is_seen, n.is_read, n.created_at, n.from_user_id,
+    `SELECT n.id, n.type, n.metadata, n.is_seen, n.is_read, n.created_at, n.from_user_id,
             p.name AS from_user_name, p.photos AS from_user_photos, m.id AS match_id
      FROM notifications n
      JOIN profiles p ON p.user_id = n.from_user_id
      JOIN users u ON u.id = n.from_user_id
      LEFT JOIN matches m ON ((m.user1_id = $1 AND m.user2_id = n.from_user_id) OR (m.user1_id = n.from_user_id AND m.user2_id = $1))
      WHERE n.to_user_id = $1 AND u.is_banned = 0
-     ORDER BY n.created_at DESC`,
+     ORDER BY (CASE WHEN n.type = 'super_like' AND n.is_read = 0 THEN 0 WHEN n.type = 'super_like' THEN 1 ELSE 2 END), n.created_at DESC`,
     [userId]
   );
 
@@ -39,11 +39,21 @@ notification.get('/', async (c) => {
         if (Array.isArray(p) && p.length > 0) firstPhoto = p[0]; } catch {}
     }
     const isMatched = Boolean(n.match_id);
+    let meta = {};
+    try { meta = typeof n.metadata === 'string' ? JSON.parse(n.metadata) : (n.metadata || {}); } catch {}
+
+    const isSuperLike = n.type === 'super_like';
+    const senderName = n.from_user_name || 'Campus Student';
+
     return {
-      id: n.id, type: n.type, is_seen: Boolean(n.is_seen), is_read: Boolean(n.is_read),
+      id: n.id, type: n.type,
+      metadata: meta,
+      shared_interests: meta.shared_interests || [],
+      shared_interests_count: meta.shared_count || (meta.shared_interests ? meta.shared_interests.length : 0),
+      is_seen: Boolean(n.is_seen), is_read: Boolean(n.is_read),
       created_at: n.created_at, from_user_id: n.from_user_id,
-      from_user_name: isMatched || n.type === 'message' ? (n.from_user_name || 'Campus Student') : 'Someone',
-      real_name: n.from_user_name || 'Campus Student',
+      from_user_name: isMatched || n.type === 'message' || isSuperLike ? senderName : 'Someone',
+      real_name: senderName,
       from_user_photo: firstPhoto, match_id: n.match_id || null, is_matched: isMatched,
     };
   });

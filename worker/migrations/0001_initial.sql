@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   profile_completed INTEGER DEFAULT 0,
   is_banned INTEGER DEFAULT 0,
   last_active TEXT,
+  last_super_like_at TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -46,6 +47,9 @@ CREATE TABLE IF NOT EXISTS swipes (
   swiper_id TEXT NOT NULL,
   swiped_id TEXT NOT NULL,
   action TEXT NOT NULL,
+  is_super_like INTEGER DEFAULT 0,
+  shared_interests TEXT DEFAULT '[]',
+  shared_interests_count INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(swiper_id, swiped_id),
   FOREIGN KEY (swiper_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -111,6 +115,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   to_user_id TEXT NOT NULL,
   from_user_id TEXT NOT NULL,
   type TEXT DEFAULT 'like',
+  metadata TEXT,
   is_seen INTEGER DEFAULT 0,
   is_read INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),

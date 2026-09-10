@@ -142,3 +142,96 @@ export async function sendOTPEmail(env, to, otp) {
   console.error(`❌ [EMAIL] All providers failed for ${to}:`, errors.join(' | '));
   throw new Error(`Failed to send verification email. Please try again.`);
 }
+
+/**
+ * Send a Super Like notification email.
+ */
+export async function sendSuperLikeEmail(env, to, senderName, sharedInterests = []) {
+  const topInterests = sharedInterests.slice(0, 3).join(', ');
+  const interestsText = topInterests ? ` including ${topInterests}` : '';
+  const count = sharedInterests.length;
+
+  const subject = 'You got a Super Like on CampusHinge ⭐';
+  const ctaUrl = 'https://campushinge.pages.dev/notifications';
+  const textBody = `${senderName} Super Liked your profile — you both share ${count} interests${interestsText}. Open CampusHinge to see their profile and like back to start chatting.`;
+
+  const htmlBody = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 28px; background: #090a10; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255,215,0,0.3);">
+      <div style="display: inline-block; background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-weight: 800; font-size: 11px; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 12px;">
+        ⭐ Super Like
+      </div>
+      <h2 style="color: #ffd700; font-size: 22px; margin: 0 0 12px 0;">You got a Super Like!</h2>
+      <p style="color: #f8fafc; font-size: 15px; line-height: 1.5; margin-bottom: 18px;">
+        ${textBody}
+      </p>
+      <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 10px; padding: 12px; margin-bottom: 20px;">
+        <span style="font-size: 13px; color: #fcd34d; font-weight: 600;">✨ Shared Interests (${count}):</span>
+        <div style="color: #ffffff; font-size: 14px; margin-top: 4px;">
+          ${sharedInterests.join(' • ')}
+        </div>
+      </div>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${ctaUrl}" style="background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #000; text-decoration: none; padding: 12px 24px; border-radius: 9999px; font-weight: 700; font-size: 14px; display: inline-block;">
+          View Super Like ⭐
+        </a>
+      </div>
+    </div>
+  `;
+
+  const fromEmail = env.SMTP_USER || 'dd961847@gmail.com';
+  const fromName = 'CampusHinge';
+
+  // 1. Resend
+  if (env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${fromName} <${env.RESEND_FROM || 'onboarding@resend.dev'}>`,
+          to: [to],
+          subject,
+          html: htmlBody,
+          text: textBody,
+        }),
+      });
+      if (res.ok) {
+        console.log(`✅ [SUPER LIKE EMAIL] Sent via Resend to ${to}`);
+        return;
+      }
+    } catch (err) {
+      console.warn(`⚠️ [SUPER LIKE EMAIL] Resend failed:`, err.message);
+    }
+  }
+
+  // 2. Brevo
+  if (env.BREVO_API_KEY) {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: fromName, email: fromEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent: htmlBody,
+          textContent: textBody,
+        }),
+      });
+      if (res.ok) {
+        console.log(`✅ [SUPER LIKE EMAIL] Sent via Brevo to ${to}`);
+        return;
+      }
+    } catch (err) {
+      console.warn(`⚠️ [SUPER LIKE EMAIL] Brevo failed:`, err.message);
+    }
+  }
+}
+

@@ -14,6 +14,8 @@ function initTables() {
       email_notifications INTEGER DEFAULT 1,
       profile_completed INTEGER DEFAULT 0,
       is_banned INTEGER DEFAULT 0,
+      last_active TEXT,
+      last_super_like_at TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -48,6 +50,9 @@ function initTables() {
       swiper_id TEXT NOT NULL,
       swiped_id TEXT NOT NULL,
       action TEXT NOT NULL,
+      is_super_like INTEGER DEFAULT 0,
+      shared_interests TEXT DEFAULT '[]',
+      shared_interests_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       UNIQUE(swiper_id, swiped_id),
       FOREIGN KEY (swiper_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -113,6 +118,7 @@ function initTables() {
       to_user_id TEXT NOT NULL,
       from_user_id TEXT NOT NULL,
       type TEXT DEFAULT 'like',
+      metadata TEXT,
       is_seen INTEGER DEFAULT 0,
       is_read INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
@@ -141,11 +147,22 @@ function initTables() {
     );
   `);
 
-  // Add last_active column to users if it doesn't exist
-  try {
-    db.db.exec(`ALTER TABLE users ADD COLUMN last_active TEXT`);
-  } catch {
-    // Column already exists — ignore
+  // Migration alters for existing databases
+  const alterStatements = [
+    `ALTER TABLE users ADD COLUMN last_active TEXT`,
+    `ALTER TABLE users ADD COLUMN last_super_like_at TEXT`,
+    `ALTER TABLE swipes ADD COLUMN is_super_like INTEGER DEFAULT 0`,
+    `ALTER TABLE swipes ADD COLUMN shared_interests TEXT DEFAULT '[]'`,
+    `ALTER TABLE swipes ADD COLUMN shared_interests_count INTEGER DEFAULT 0`,
+    `ALTER TABLE notifications ADD COLUMN metadata TEXT`,
+  ];
+
+  for (const stmt of alterStatements) {
+    try {
+      db.db.exec(stmt);
+    } catch {
+      // Column already exists — ignore
+    }
   }
 
   console.log('🎉  SQLite schema initialized successfully!');

@@ -11,6 +11,11 @@ export default function DiscoverPage() {
   const [myInterests, setMyInterests] = useState([]);
   const [cardPhotoIndex, setCardPhotoIndex] = useState(0);
   const [detailProfile, setDetailProfile] = useState(null);
+  const [superLikeStatus, setSuperLikeStatus] = useState({
+    available: true,
+    next_available_in_seconds: 0,
+    last_super_like_at: null,
+  });
 
   useEffect(() => {
     loadDeckAndProfile();
@@ -20,6 +25,28 @@ export default function DiscoverPage() {
   useEffect(() => {
     setCardPhotoIndex(0);
   }, [index]);
+
+  // Cooldown countdown timer for Super Like
+  useEffect(() => {
+    if (superLikeStatus.available || superLikeStatus.next_available_in_seconds <= 0) return;
+    const interval = setInterval(() => {
+      setSuperLikeStatus((prev) => {
+        if (prev.next_available_in_seconds <= 1) {
+          return { ...prev, available: true, next_available_in_seconds: 0 };
+        }
+        return { ...prev, next_available_in_seconds: prev.next_available_in_seconds - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [superLikeStatus.available, superLikeStatus.next_available_in_seconds]);
+
+  function formatCooldown(seconds) {
+    if (!seconds || seconds <= 0) return '';
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.ceil((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  }
 
   async function loadDeckAndProfile() {
     setLoading(true);
@@ -33,6 +60,10 @@ export default function DiscoverPage() {
       const profilesList = deckRes.data?.profiles || deckRes.data || [];
       setDeck(Array.isArray(profilesList) ? profilesList : []);
       setIndex(0);
+
+      if (deckRes.data?.super_like) {
+        setSuperLikeStatus(deckRes.data.super_like);
+      }
 
       const p = myProfileRes?.data?.profile || myProfileRes?.data;
       if (p?.interests) {
@@ -59,9 +90,25 @@ export default function DiscoverPage() {
       const res = await swipeApi.swipe(targetId, action);
       if (res.data?.matched) {
         setSwipeMsg(`🎉 It's a Match with ${profile.name || 'someone'}!`);
+      } else if (action === 'super_like') {
+        setSwipeMsg(`⭐ Super Liked ${profile.name || 'someone'}!`);
+      }
+      if (action === 'super_like') {
+        setSuperLikeStatus({
+          available: false,
+          next_available_in_seconds: 24 * 3600,
+          last_super_like_at: new Date().toISOString(),
+        });
       }
       setIndex((prev) => prev + 1);
     } catch (err) {
+      if (err.status === 429 && err.retryAfter) {
+        setSuperLikeStatus((prev) => ({
+          ...prev,
+          available: false,
+          next_available_in_seconds: err.retryAfter,
+        }));
+      }
       setError(err.message);
     }
   }
@@ -447,17 +494,55 @@ export default function DiscoverPage() {
             </div>
           </div>
 
-          <div className="swipe-actions">
-            <button className="action-btn action-pass" onClick={() => handleSwipe('pass')} aria-label="Pass">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <button className="action-btn action-like" onClick={() => handleSwipe('like')} aria-label="Like">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-              </svg>
-            </button>
+          <div className="swipe-actions" style={{ flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.25rem' }}>
+              <button className="action-btn action-pass" onClick={() => handleSwipe('pass')} aria-label="Pass">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Super Like Button — ONLY unlocked when 4+ interests match */}
+              {sharedInterests.length >= 4 && (
+                <button
+                  className="action-btn action-super-like"
+                  onClick={() => superLikeStatus.available && handleSwipe('super_like')}
+                  disabled={!superLikeStatus.available}
+                  title={
+                    superLikeStatus.available
+                      ? `⭐ Super Like (${sharedInterests.length} shared interests!)`
+                      : `Next Super Like available in ${formatCooldown(superLikeStatus.next_available_in_seconds)}`
+                  }
+                  aria-label="Super Like"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem',
+                  }}
+                >
+                  ⭐
+                </button>
+              )}
+
+              <button className="action-btn action-like" onClick={() => handleSwipe('like')} aria-label="Like">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Optional Super Like Status / Cooldown notice when 4+ interests match */}
+            {sharedInterests.length >= 4 && !superLikeStatus.available && superLikeStatus.next_available_in_seconds > 0 && (
+              <span style={{ fontSize: '0.75rem', color: '#ffd700', marginTop: '0.4rem', fontWeight: '600' }}>
+                Next Super Like available in {formatCooldown(superLikeStatus.next_available_in_seconds)}
+              </span>
+            )}
+            {sharedInterests.length >= 4 && superLikeStatus.available && (
+              <span style={{ fontSize: '0.74rem', color: '#ffd700', marginTop: '0.4rem', fontWeight: '700', letterSpacing: '0.02em' }}>
+                ⭐ Super Like Unlocked ({sharedInterests.length} shared interests!)
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -467,6 +552,9 @@ export default function DiscoverPage() {
         <DiscoverProfileModal
           profile={detailProfile}
           myInterests={myInterests}
+          canSuperLike={sharedInterests.length >= 4}
+          superLikeAvailable={superLikeStatus.available}
+          superLikeCooldownText={formatCooldown(superLikeStatus.next_available_in_seconds)}
           onClose={() => setDetailProfile(null)}
           onSwipe={(action) => handleSwipe(action)}
         />

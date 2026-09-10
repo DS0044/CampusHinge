@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { getPhotoUrl } from '../api';
 
-export default function DiscoverProfileModal({ profile, myInterests = [], onClose, onSwipe }) {
+export default function DiscoverProfileModal({
+  profile,
+  myInterests = [],
+  canSuperLike = false,
+  superLikeAvailable = true,
+  superLikeCooldownText = '',
+  onClose,
+  onSwipe,
+}) {
   const [photoIndex, setPhotoIndex] = useState(0);
 
   if (!profile) return null;
@@ -400,29 +408,61 @@ export default function DiscoverProfileModal({ profile, myInterests = [], onClos
             </div>
           )}
 
-          {/* Action Buttons (Pass / Like) directly in detail modal */}
+          {/* Action Buttons (Pass / Super Like / Like) directly in detail modal */}
           {onSwipe && (
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  onSwipe('pass');
-                  onClose();
-                }}
-                style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
-              >
-                ✕ Pass
-              </button>
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  onSwipe('like');
-                  onClose();
-                }}
-                style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
-              >
-                💖 Like
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    onSwipe('pass');
+                    onClose();
+                  }}
+                  style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
+                >
+                  ✕ Pass
+                </button>
+                {canSuperLike && (
+                  <button
+                    className="btn-primary"
+                    disabled={!superLikeAvailable}
+                    onClick={() => {
+                      if (superLikeAvailable) {
+                        onSwipe('super_like');
+                        onClose();
+                      }
+                    }}
+                    style={{
+                      flex: 1.2,
+                      padding: '0.75rem',
+                      fontSize: '0.95rem',
+                      background: superLikeAvailable ? 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)' : 'rgba(255,215,0,0.15)',
+                      color: superLikeAvailable ? '#000' : '#888',
+                      fontWeight: '700',
+                      border: '1px solid rgba(255,215,0,0.4)',
+                      boxShadow: superLikeAvailable ? '0 4px 15px rgba(255,215,0,0.35)' : 'none',
+                      cursor: superLikeAvailable ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    ⭐ Super Like
+                  </button>
+                )}
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    onSwipe('like');
+                    onClose();
+                  }}
+                  style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
+                >
+                  💖 Like
+                </button>
+              </div>
+              {canSuperLike && !superLikeAvailable && superLikeCooldownText && (
+                <span style={{ fontSize: '0.75rem', color: '#ffd700', textAlign: 'center', fontWeight: '600' }}>
+                  Next Super Like available in {superLikeCooldownText}
+                </span>
+              )}
             </div>
           )}
         </div>

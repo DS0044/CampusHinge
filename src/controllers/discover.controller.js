@@ -97,7 +97,7 @@ async function getDiscoverDeck(req, res, next) {
       params
     );
 
-    // If no new unswiped candidates exist, recycle passed candidates (excluding active likes and matches)
+    // If no new unswiped candidates exist, recycle passed candidates (excluding active likes, super likes, and matches)
     if (candidates.length === 0) {
       const { rows: recycled } = await db.query(
         `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender,
@@ -107,7 +107,7 @@ async function getDiscoverDeck(req, res, next) {
          WHERE p.user_id != $1
            AND u.is_banned = 0
            AND u.email_verified = 1
-           AND p.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = $1 AND action = 'like')
+           AND p.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = $1 AND action IN ('like', 'super_like'))
            AND p.user_id NOT IN (
              SELECT user2_id FROM matches WHERE user1_id = $1
              UNION SELECT user1_id FROM matches WHERE user2_id = $1
@@ -155,6 +155,7 @@ async function getDiscoverDeck(req, res, next) {
           interests,
           shared_interests: sharedInterests,
           shared_count: sharedInterests.length,
+          shared_interests_count: sharedInterests.length,
           compatibility_score: score,
           compatibility_breakdown: breakdown,
         };
@@ -168,11 +169,40 @@ async function getDiscoverDeck(req, res, next) {
     // 6. Refresh tag popularity in background (non-blocking)
     refreshTagPopularity().catch(() => {});
 
+    // 7. Check viewer's super like 24-hour limit status
+    const { rows: viewerUser } = await db.query(
+      `SELECT last_super_like_at FROM users WHERE id = $1`,
+      [userId]
+    );
+    const lastSuperLikeAt = viewerUser[0]?.last_super_like_at;
+    let superLikeAvailable = true;
+    let nextSuperLikeInSeconds = 0;
+
+    if (lastSuperLikeAt) {
+      let lastTimeStr = String(lastSuperLikeAt);
+      if (!lastTimeStr.endsWith('Z') && !lastTimeStr.includes('+')) {
+        lastTimeStr = lastTimeStr.replace(' ', 'T') + 'Z';
+      }
+      const lastMs = new Date(lastTimeStr).getTime();
+      const elapsedMs = Date.now() - lastMs;
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+      if (!isNaN(lastMs) && elapsedMs < ONE_DAY_MS) {
+        superLikeAvailable = false;
+        nextSuperLikeInSeconds = Math.ceil((ONE_DAY_MS - elapsedMs) / 1000);
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {
         profiles: topProfiles,
         count: topProfiles.length,
+        super_like: {
+          available: superLikeAvailable,
+          next_available_in_seconds: nextSuperLikeInSeconds,
+          last_super_like_at: lastSuperLikeAt || null,
+        },
       },
     });
   } catch (err) {
