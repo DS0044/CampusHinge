@@ -310,7 +310,7 @@ export default function SignupPage() {
       {/* Trust & Verification note */}
       <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
         <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-          🔒 Fast &amp; verified college student access via Google OAuth.
+          🔒 Only students with verified college accounts can join.
         </p>
         <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
           Already have an account?{' '}
