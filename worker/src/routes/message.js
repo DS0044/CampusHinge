@@ -80,9 +80,10 @@ message.post('/:matchId', async (c) => {
   // No message limit — matched users can chat freely
 
   const messageId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
   await query(db,
-    `INSERT INTO messages (id, match_id, sender_id, content) VALUES ($1, $2, $3, $4)`,
-    [messageId, matchId, userId, content]
+    `INSERT INTO messages (id, match_id, sender_id, content, created_at) VALUES ($1, $2, $3, $4, $5)`,
+    [messageId, matchId, userId, content, createdAt]
   );
 
   // Fetch the created message

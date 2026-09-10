@@ -139,13 +139,14 @@ async function sendMessage(req, res, next) {
 
     const crypto = require('crypto');
     const messageId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
 
     // ── Send the message ──
     const { rows: messageRows } = await db.query(
-      `INSERT INTO messages (id, match_id, sender_id, content)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO messages (id, match_id, sender_id, content, created_at)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, match_id, sender_id, content, created_at`,
-      [messageId, matchId, userId, content]
+      [messageId, matchId, userId, content, createdAt]
     );
 
     const message = messageRows[0];

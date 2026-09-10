@@ -36,6 +36,23 @@ function tempId() {
   return `_temp_${Date.now()}_${++counter}`;
 }
 
+// ── Format exact message timestamp in user's local timezone ──
+function formatMessageTime(timestamp) {
+  if (!timestamp) return '';
+  let str = String(timestamp).trim();
+  // Ensure UTC parsing for SQLite timestamps without timezone ("YYYY-MM-DD HH:MM:SS")
+  if (!str.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(str)) {
+    str = str.replace(' ', 'T') + 'Z';
+  }
+  const date = new Date(str);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 export default function ChatPage() {
   const { matchId } = useParams();
   const navigate = useNavigate();
@@ -341,9 +358,7 @@ export default function ChatPage() {
             >
               <p>{msg.content}</p>
               <span className="msg-time" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                {msg.created_at
-                  ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  : ''}
+                {formatMessageTime(msg.created_at)}
                 {/* Status indicators for own messages */}
                 {isMine && status === 'pending' && (
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }} title="Sending">◌</span>
