@@ -89,6 +89,7 @@ const signupSchema = z.object({
     .refine((val) => isEmailAllowed(val), {
       message: "This email isn't eligible for verification",
     }),
+  accepted_terms: z.any().optional(),
 });
 
 const verifyOtpSchema = z.object({

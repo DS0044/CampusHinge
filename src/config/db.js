@@ -157,6 +157,16 @@ try {
   } catch (e) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN accepted_terms_at TEXT;`);
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN terms_version TEXT;`);
+  } catch (e) {
+    // Column already exists
+  }
 } catch (err) {
   console.error('❌  Auto-migration notice:', err.message);
 }

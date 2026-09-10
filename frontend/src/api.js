@@ -95,7 +95,7 @@ async function request(method, path, body = null) {
 // ── Auth ──
 export const authApi = {
   login: (email) => request('POST', '/auth/login', { email }),
-  signup: (email) => request('POST', '/auth/signup', { email }),
+  signup: (email, accepted_terms) => request('POST', '/auth/signup', { email, accepted_terms }),
   verifyOtp: (email, code) => request('POST', '/auth/verify-otp', { email, code }),
   resendOtp: (email) => request('POST', '/auth/resend-otp', { email }),
   googleSignIn: (credential) => request('POST', '/auth/google', { credential }),

@@ -1,226 +1,205 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function TermsOfServicePage() {
   const navigate = useNavigate();
 
   return (
     <div className="page legal-page" style={{ justifyContent: 'flex-start' }}>
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="btn-secondary"
-        style={{
-          alignSelf: 'flex-start',
-          padding: '0.5rem 1rem',
-          fontSize: '0.85rem',
-          marginBottom: '1rem',
-          borderRadius: 'var(--radius-full)',
-        }}
-      >
-        ← Back
-      </button>
-
-      <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>Terms of Service</h1>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-          Last updated: September 10, 2026
-        </p>
+      {/* Navigation header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '1.25rem' }}>
+        <button
+          onClick={() => navigate(-1)}
+          className="btn-secondary"
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            borderRadius: 'var(--radius-full)',
+          }}
+        >
+          ← Back
+        </button>
+        <Link
+          to="/privacy"
+          style={{
+            fontSize: '0.85rem',
+            color: 'var(--primary-pink)',
+            textDecoration: 'underline',
+            fontWeight: 600,
+          }}
+        >
+          View Privacy Policy →
+        </Link>
       </div>
 
-      <div className="glass-card legal-content" style={{ lineHeight: 1.75 }}>
+      <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.65rem', marginBottom: '0.35rem' }}>Terms &amp; Conditions</h1>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>
+            Last updated: September 10, 2026
+          </span>
+          <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', background: 'rgba(255,64,129,0.15)', color: 'var(--primary-pink)', borderRadius: '4px', fontWeight: 600 }}>
+            Version 1.0
+          </span>
+        </div>
+      </div>
+
+      <div className="glass-card legal-content" style={{ lineHeight: 1.8 }}>
         <section>
-          <h2>1. Acceptance of Terms</h2>
+          <h2>1. Acceptance of Terms &amp; Conditions</h2>
           <p>
-            By accessing or using CampusHinge ("the Platform"), available at{' '}
-            <a href="https://www.campushinge.online" style={{ color: 'var(--primary-pink)' }}>
-              www.campushinge.online
-            </a>,
-            you agree to be bound by these Terms of Service ("Terms"). If you do not agree
-            to these Terms, please do not use the Platform.
+            Welcome to <strong>CampusHinge</strong> ("we," "our," or "the Platform"). By accessing, registering for,
+            or using our application via web or mobile devices, you acknowledge that you have read, understood, and agree
+            to be bound by these Terms &amp; Conditions ("Terms") and our <Link to="/privacy" style={{ color: 'var(--primary-pink)' }}>Privacy Policy</Link>.
+            If you do not agree to these Terms, you may not access or use the Platform.
           </p>
         </section>
 
         <section>
-          <h2>2. Eligibility</h2>
-          <p>To use CampusHinge, you must:</p>
+          <h2>2. Minimum Age &amp; Eligibility Requirements</h2>
+          <p>CampusHinge is exclusively crafted for authentic university and college communities. To register, create a profile, or use CampusHinge, you represent and warrant that:</p>
           <ul>
-            <li>Be at least <strong>18 years of age</strong></li>
-            <li>Be a current student or alumnus of a supported educational institution</li>
-            <li>Have a valid campus email address from a supported domain (e.g., vitbhopal.ac.in, lpu.co.in, bits-pilani.ac.in, galgotiasuniversity.ac.in)</li>
-            <li>Sign in using a Google account associated with your campus email</li>
-          </ul>
-          <p>
-            We reserve the right to verify your eligibility and revoke access if you do
-            not meet these requirements.
-          </p>
-        </section>
-
-        <section>
-          <h2>3. Account Registration</h2>
-          <p>
-            You register by signing in with your Google account. You are responsible for
-            maintaining the security of your account. You agree to:
-          </p>
-          <ul>
-            <li>Provide accurate and truthful profile information</li>
-            <li>Not create multiple accounts</li>
-            <li>Not share your account with others</li>
-            <li>Notify us immediately of any unauthorized access to your account</li>
+            <li>You are at least <strong>18 years of age</strong>. We enforce a strict zero-tolerance policy against underage accounts.</li>
+            <li>You are an actively enrolled undergraduate, postgraduate student, or faculty member/alumnus affiliated with an approved educational institution.</li>
+            <li>You possess a valid, active college-issued email address under an authorized campus domain (such as <code>@vitbhopal.ac.in</code>, <code>@lnctu.ac.in</code>, <code>@lpu.co.in</code>, <code>@bits-pilani.ac.in</code>, or approved university extensions).</li>
+            <li>You have not been previously suspended, banned, or removed from CampusHinge for violating our community safety rules.</li>
           </ul>
         </section>
 
         <section>
-          <h2>4. User Conduct</h2>
-          <p>You agree <strong>not</strong> to:</p>
-          <ul>
-            <li>Harass, bully, threaten, or intimidate other users</li>
-            <li>Post or share obscene, offensive, or sexually explicit content</li>
-            <li>Impersonate another person or misrepresent your identity</li>
-            <li>Use the Platform for solicitation, advertising, or commercial purposes</li>
-            <li>Attempt to hack, scrape, or reverse-engineer the Platform</li>
-            <li>Use automated bots, scripts, or tools to interact with the Platform</li>
-            <li>Collect personal information of other users without consent</li>
-            <li>Share private conversations or user information outside the Platform</li>
-            <li>Engage in any activity that violates applicable laws or regulations</li>
-          </ul>
+          <h2>3. Campus Email OTP Verification &amp; Account Authenticity</h2>
           <p>
-            Violation of these rules may result in immediate suspension or permanent ban
-            from the Platform without prior notice.
-          </p>
-        </section>
-
-        <section>
-          <h2>5. User Content</h2>
-          <p>
-            You retain ownership of all content you post (photos, bio, messages). By posting
-            content on CampusHinge, you grant us a non-exclusive, worldwide, royalty-free
-            license to use, display, and distribute your content solely for the purpose of
-            operating the Platform.
-          </p>
-          <p>You are solely responsible for the content you post. You represent that:</p>
-          <ul>
-            <li>You own or have the right to share all content you post</li>
-            <li>Your content does not infringe any third-party rights</li>
-            <li>Your content complies with these Terms and applicable laws</li>
-          </ul>
-          <p>
-            We reserve the right to remove any content that violates these Terms without
-            prior notice.
-          </p>
-        </section>
-
-        <section>
-          <h2>6. Matching & Messaging</h2>
-          <p>
-            CampusHinge facilitates connections between verified campus users. We do not
-            guarantee compatibility, the quality of matches, or the outcome of any
-            interaction. You acknowledge that:
+            To eliminate bot profiles, malicious actors, and non-student intruders, CampusHinge mandates strict cryptographic and email-based authentication:
           </p>
           <ul>
-            <li>Matches are based on mutual interest (both users must like each other)</li>
-            <li>We are not responsible for the behavior of other users</li>
-            <li>You interact with other users at your own risk</li>
-            <li>Messages are stored for delivery purposes and may be moderated for safety</li>
+            <li><strong>Domain Restriction:</strong> Registration is restricted strictly to verified institutional email domains. Generic personal emails (such as Gmail, Yahoo, Outlook) are prohibited unless explicitly whitelisted for certified development testing.</li>
+            <li><strong>One-Time Password (OTP) Flow:</strong> Accounts are authenticated via single-use 6-digit verification codes dispatched directly to your college inbox with strict 10-minute expirations and 30-second resend cooldowns.</li>
+            <li><strong>Single Account Policy:</strong> You may only register and operate one active user account corresponding to your verified student identity. You may not share, sell, transfer, or lend account credentials to any third party.</li>
+            <li><strong>How Your College Email is Handled:</strong> Your campus email is utilized exclusively for verification, secure session management, and crucial account notifications. We do <strong>not</strong> sell, rent, or trade your email address to commercial marketing brokers or third-party advertisers.</li>
           </ul>
         </section>
 
         <section>
-          <h2>7. Safety & Reporting</h2>
+          <h2>4. Profile Requirements &amp; Photo Guidelines</h2>
           <p>
-            Your safety is important to us. If you encounter inappropriate behavior,
-            harassment, or feel unsafe, please:
+            To foster a transparent and genuine dating and networking environment, every user must adhere to our profile standards before participating in matching:
           </p>
           <ul>
-            <li>Report the user through the Platform</li>
-            <li>Contact us at <span style={{ color: 'var(--primary-pink)' }}>dd961847@gmail.com</span></li>
-            <li>Contact local authorities if you feel in immediate danger</li>
-          </ul>
-          <p>
-            <strong>Safety tip:</strong> Always meet in public places. Tell a friend where
-            you're going. Trust your instincts.
-          </p>
-        </section>
-
-        <section>
-          <h2>8. Subscriptions & Payments</h2>
-          <p>
-            CampusHinge may offer premium features through paid subscriptions. If applicable:
-          </p>
-          <ul>
-            <li>Pricing and features will be clearly displayed before purchase</li>
-            <li>Payments are processed through secure third-party providers (Razorpay)</li>
-            <li>Subscription terms (duration, renewal, cancellation) will be specified at purchase</li>
-            <li>Refunds are subject to our refund policy and applicable regulations</li>
+            <li><strong>Mandatory Profile Completion:</strong> You must supply your authentic first name, academic branch/discipline, year of study, self-identified gender, and dating preference.</li>
+            <li><strong>Minimum Photo Quota:</strong> Users must upload a minimum of <strong>two (2) authentic, high-quality photographs</strong> displaying their clear, recognizable likeness before browsing campus decks or unlocking interactive features.</li>
+            <li><strong>Prohibited Media:</strong> You agree not to upload any imagery containing nudity, sexually suggestive or pornographic poses, violence, hate symbols, weapons, illicit substances, or copyrighted photographs belonging to others.</li>
+            <li><strong>Anti-Catfishing &amp; Impersonation:</strong> Impersonating another student, utilizing AI-generated fake personas (deepfakes), or misrepresenting your college graduation year is strictly forbidden and constitutes immediate grounds for permanent banning.</li>
           </ul>
         </section>
 
         <section>
-          <h2>9. Intellectual Property</h2>
+          <h2>5. Matching, Swiping &amp; Super-Like Mechanics</h2>
           <p>
-            The CampusHinge name, logo, design, code, and all related intellectual property
-            are owned by CampusHinge. You may not copy, modify, distribute, or create
-            derivative works from any part of our Platform without explicit written permission.
-          </p>
-        </section>
-
-        <section>
-          <h2>10. Disclaimer of Warranties</h2>
-          <p>
-            CampusHinge is provided <strong>"as is"</strong> and <strong>"as available"</strong>{' '}
-            without warranties of any kind, either express or implied. We do not warrant that:
+            CampusHinge utilizes an algorithmic discovery deck designed to connect students sharing academic backgrounds and mutual interests:
           </p>
           <ul>
-            <li>The Platform will be uninterrupted, error-free, or secure</li>
-            <li>Any matches will lead to successful relationships</li>
-            <li>All user profiles are genuine or accurate</li>
+            <li><strong>Mutual Consent Matching:</strong> A match is formed only when two users mutually express interest ("Like"). Neither party can initiate direct messaging until mutual consent is established.</li>
+            <li><strong>Super-Likes:</strong> Users may send a Super-Like to express high priority interest. Free accounts are limited to one (1) Super-Like every rolling 24-hour period, with priority notifications displayed in the recipient's activity feed.</li>
+            <li><strong>Interest Affinity:</strong> Profiles display shared interests (such as coding, music, literature, sports). Shared interest counters assist in determining affinity ranking.</li>
+            <li><strong>No Guarantee:</strong> We do not warrant or guarantee that you will receive matches, responses, or romantic compatibility.</li>
           </ul>
         </section>
 
         <section>
-          <h2>11. Limitation of Liability</h2>
+          <h2>6. Real-Time Chat &amp; Community Communications</h2>
           <p>
-            To the maximum extent permitted by law, CampusHinge and its operators shall not
-            be liable for any indirect, incidental, special, consequential, or punitive
-            damages arising from your use of the Platform, including but not limited to
-            damages for loss of data, personal injury, or emotional distress.
-          </p>
-        </section>
-
-        <section>
-          <h2>12. Account Termination</h2>
-          <p>
-            You may delete your account at any time. We reserve the right to suspend or
-            terminate accounts that violate these Terms. Upon termination:
+            Upon matching, users are granted access to private, real-time messaging powered by live WebSocket connections. When using chat, you agree to:
           </p>
           <ul>
-            <li>Your profile will be removed from the Platform</li>
-            <li>Your matches and conversations will be deleted</li>
-            <li>You may lose access to any premium features</li>
+            <li>Engage in polite, respectful, and consensual dialogue.</li>
+            <li>Never transmit unrequested sexually explicit photos, unsolicited links, commercial sales pitches, or scam messages.</li>
+            <li>Refrain from abusive language, stalking, persistent unwanted contact, intimidation, or extortion.</li>
+            <li>Acknowledge that conversations may be subject to automated abuse detection and administrative review in the event of user reporting.</li>
           </ul>
         </section>
 
         <section>
-          <h2>13. Changes to Terms</h2>
+          <h2>7. Subscriptions, Paywalls &amp; Payments</h2>
           <p>
-            We may modify these Terms at any time. Material changes will be communicated
-            through the Platform. Continued use after changes constitutes acceptance of the
-            new Terms.
+            CampusHinge offers optional premium subscription plans (e.g., CampusHinge Gold/Plus) unlocking enhanced features such as unlimited swipes, the ability to see who liked your profile before swiping, additional super-likes, and profile badges:
+          </p>
+          <ul>
+            <li><strong>Payment Gateway:</strong> All financial transactions and renewals are securely processed through authorized payment gateways (including Razorpay). CampusHinge does not store complete credit card or debit card numbers on its servers.</li>
+            <li><strong>Subscription Validity:</strong> Paid privileges remain valid for the duration selected during purchase. When a subscription expires without renewal, accounts gracefully revert to standard free campus tier privileges.</li>
+            <li><strong>Refunds:</strong> Unless explicitly required by applicable statutory consumer protection laws in India, subscription fees and digital purchases are non-refundable once activated.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>8. Safety, In-App Reporting &amp; User Blocking</h2>
+          <p>
+            Your emotional and physical well-being is our highest priority:
+          </p>
+          <ul>
+            <li><strong>Immediate User Blocking:</strong> You can block any matched user at any moment. Blocking instantly severs the match, deletes reciprocal chat visibility, and prevents future discovery on either user's feed.</li>
+            <li><strong>Reporting System:</strong> If you observe any behavior that violates these Terms or poses a threat, you are strongly urged to submit an in-app report detailing the offense.</li>
+            <li><strong>Real-World Meetups:</strong> When deciding to meet a match offline on or off campus, always choose public locations (such as campus cafeterias, libraries, or busy student centers), notify trusted friends or roommates, and arrange your own transportation.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>9. Data Protection &amp; Privacy Basics</h2>
+          <p>
+            We adhere to rigorous data hygiene practices:
+          </p>
+          <ul>
+            <li>Data in transit is protected using modern HTTPS / TLS 1.3 encryption.</li>
+            <li>Session credentials utilize cryptographically signed JSON Web Tokens (JWT).</li>
+            <li>You maintain ownership of your photographs and personal text, granting CampusHinge a limited license solely necessary to host, display, and deliver content within the platform.</li>
+            <li>For comprehensive disclosures on data collection, local storage tokens, and retention periods, consult our <Link to="/privacy" style={{ color: 'var(--primary-pink)' }}>Privacy Policy</Link>.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>10. Account Suspension, Termination &amp; Bans</h2>
+          <p>
+            We reserve the unconditional right to investigate reports and unilaterally suspend, deactivate, or permanently ban any account, without liability or refund, if:
+          </p>
+          <ul>
+            <li>You violate any clause of these Terms or engage in conduct detrimental to the campus community.</li>
+            <li>Your university email address is deactivated, revoked, or found to be invalid.</li>
+            <li>You engage in fraudulent payment chargebacks or unauthorized transactions.</li>
+            <li>You attempt to reverse-engineer, scrape, DDoS, or breach the application's APIs, databases, or WebSocket servers.</li>
+          </ul>
+          <p>
+            You may also voluntary discontinue your use of the Platform and delete your account and associated profile data at any time via in-app profile settings.
           </p>
         </section>
 
         <section>
-          <h2>14. Governing Law</h2>
+          <h2>11. Disclaimer of Warranties &amp; Limitation of Liability</h2>
           <p>
-            These Terms are governed by and construed in accordance with the laws of India.
-            Any disputes shall be subject to the exclusive jurisdiction of the courts in
-            Bhopal, Madhya Pradesh, India.
+            CampusHinge is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis without warranties of any kind, whether express or implied.
+            To the fullest extent permissible under applicable law, CampusHinge, its developers, operators, and affiliates disclaim all liability for any indirect,
+            punitive, incidental, or consequential damages resulting from user conduct, offline interactions, loss of data, or service interruptions.
           </p>
         </section>
 
         <section>
-          <h2>15. Contact Us</h2>
+          <h2>12. Updates to Terms &amp; Version Tracking</h2>
           <p>
-            For questions, concerns, or feedback regarding these Terms, please contact us at:
+            We may revise and update these Terms from time to time to accommodate new features, security protocols, or legal obligations.
+            Any updates will be reflected with a revised <strong>"Last updated"</strong> date and incremented <strong>terms_version</strong> in our system.
+            Your continuous usage of CampusHinge following any updates constitutes your explicit agreement and acceptance of the revised Terms.
+          </p>
+        </section>
+
+        <section>
+          <h2>13. Governing Law &amp; Dispute Resolution</h2>
+          <p>
+            These Terms &amp; Conditions are governed by and construed in accordance with the substantive laws of India. Any claim or dispute arising out
+            of or relating to CampusHinge shall be subject to the exclusive jurisdiction of the competent courts located in Bhopal, Madhya Pradesh, India.
+          </p>
+        </section>
+
+        <section>
+          <h2>14. Contact &amp; Support</h2>
+          <p>
+            If you have questions, inquiries, or feedback regarding these Terms, please reach out to our administration team at:
           </p>
           <p style={{ color: 'var(--primary-pink)', fontWeight: 600 }}>
             📧 dd961847@gmail.com

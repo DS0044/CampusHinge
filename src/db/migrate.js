@@ -16,6 +16,8 @@ function initTables() {
       is_banned INTEGER DEFAULT 0,
       last_active TEXT,
       last_super_like_at TEXT,
+      accepted_terms_at TEXT,
+      terms_version TEXT DEFAULT '1.0',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -151,6 +153,8 @@ function initTables() {
   const alterStatements = [
     `ALTER TABLE users ADD COLUMN last_active TEXT`,
     `ALTER TABLE users ADD COLUMN last_super_like_at TEXT`,
+    `ALTER TABLE users ADD COLUMN accepted_terms_at TEXT`,
+    `ALTER TABLE users ADD COLUMN terms_version TEXT`,
     `ALTER TABLE swipes ADD COLUMN is_super_like INTEGER DEFAULT 0`,
     `ALTER TABLE swipes ADD COLUMN shared_interests TEXT DEFAULT '[]'`,
     `ALTER TABLE swipes ADD COLUMN shared_interests_count INTEGER DEFAULT 0`,

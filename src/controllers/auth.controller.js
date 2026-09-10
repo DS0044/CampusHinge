@@ -19,9 +19,15 @@ const { AppError } = require('../middleware/errorHandler');
  */
 async function signup(req, res, next) {
   try {
-    const { email } = req.body;
+    const { email, accepted_terms } = req.body;
     const cleanEmail = (email || '').trim().toLowerCase();
     console.log(`\n🔐  [AUTH SIGNUP] ── Request received for: ${cleanEmail}`);
+
+    // Validate Terms & Conditions acceptance
+    if (accepted_terms !== true && accepted_terms !== 'true') {
+      console.warn(`🔐  [AUTH SIGNUP] ✗ Terms not accepted for: ${cleanEmail}`);
+      throw new AppError('You must accept the Terms & Conditions to create an account.', 400);
+    }
 
     // 1. Validate domain against allowlist
     console.log(`🔐  [AUTH SIGNUP] Step 1: Checking domain allowlist…`);
@@ -45,13 +51,23 @@ async function signup(req, res, next) {
       throw new AppError('This account has been suspended.', 403);
     }
 
+    const CURRENT_TERMS_VERSION = '1.0';
+    const acceptedTermsAt = new Date().toISOString();
+
     if (rows.length === 0) {
       const crypto = require('crypto');
       const userId = crypto.randomUUID();
-      await db.query(`INSERT INTO users (id, email) VALUES ($1, $2)`, [userId, cleanEmail]);
-      console.log(`🔐  [AUTH SIGNUP] ✓ New user created`);
+      await db.query(
+        `INSERT INTO users (id, email, accepted_terms_at, terms_version) VALUES ($1, $2, $3, $4)`,
+        [userId, cleanEmail, acceptedTermsAt, CURRENT_TERMS_VERSION]
+      );
+      console.log(`🔐  [AUTH SIGNUP] ✓ New user created with accepted_terms_at=${acceptedTermsAt}`);
     } else {
-      console.log(`🔐  [AUTH SIGNUP] ✓ Existing user found (id=${rows[0].id})`);
+      await db.query(
+        `UPDATE users SET accepted_terms_at = $1, terms_version = $2, updated_at = datetime('now') WHERE id = $3`,
+        [acceptedTermsAt, CURRENT_TERMS_VERSION, rows[0].id]
+      );
+      console.log(`🔐  [AUTH SIGNUP] ✓ Existing user found (id=${rows[0].id}) — updated accepted_terms_at`);
     }
 
     // 4. Generate OTP
@@ -367,13 +383,16 @@ async function googleAuth(req, res, next) {
       throw new AppError('This account has been suspended.', 403);
     }
 
+    const CURRENT_TERMS_VERSION = '1.0';
+    const acceptedTermsAt = new Date().toISOString();
+
     let user;
     if (rows.length === 0) {
       const crypto = require('crypto');
       const userId = crypto.randomUUID();
       await db.query(
-        `INSERT INTO users (id, email, email_verified, profile_completed) VALUES ($1, $2, 1, 0)`,
-        [userId, cleanEmail]
+        `INSERT INTO users (id, email, email_verified, profile_completed, accepted_terms_at, terms_version) VALUES ($1, $2, 1, 0, $3, $4)`,
+        [userId, cleanEmail, acceptedTermsAt, CURRENT_TERMS_VERSION]
       );
       const { rows: newRows } = await db.query(
         `SELECT id, email, role, subscription_status, subscription_expiry, is_banned, profile_completed FROM users WHERE id = $1`,
@@ -383,7 +402,10 @@ async function googleAuth(req, res, next) {
       console.log(`✅ [GOOGLE AUTH] New user created: ${cleanEmail}`);
     } else {
       user = rows[0];
-      await db.query(`UPDATE users SET email_verified = 1 WHERE id = $1`, [user.id]);
+      await db.query(
+        `UPDATE users SET email_verified = 1, accepted_terms_at = COALESCE(accepted_terms_at, $1), terms_version = COALESCE(terms_version, $2) WHERE id = $3`,
+        [acceptedTermsAt, CURRENT_TERMS_VERSION, user.id]
+      );
       console.log(`✅ [GOOGLE AUTH] Existing user signed in: ${cleanEmail}`);
     }
 

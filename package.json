@@ -9,6 +9,7 @@
     "build": "npm install --prefix frontend && npm run build --prefix frontend",
     "deploy:worker": "npm run deploy --prefix worker",
     "migrate": "node src/db/migrate.js",
+    "db:clear": "node src/db/clear.js",
     "test": "node --test"
   },
   "keywords": [],

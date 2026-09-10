@@ -54,9 +54,13 @@ function generateOTP() {
 
 // POST /api/auth/signup
 auth.post('/signup', async (c) => {
-  const { email } = await c.req.json();
+  const { email, accepted_terms } = await c.req.json();
   const cleanEmail = (email || '').trim().toLowerCase();
   const db = c.env.DB;
+
+  if (accepted_terms !== true && accepted_terms !== 'true') {
+    return c.json({ success: false, error: { message: 'You must accept the Terms & Conditions to create an account.' } }, 400);
+  }
 
   if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS, c.env.ALLOWED_EXTRA_EMAILS)) {
     return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
@@ -77,10 +81,15 @@ auth.post('/signup', async (c) => {
     return c.json({ success: false, error: { message: 'This account has been suspended.' } }, 403);
   }
 
-  // Create user if not exists
+  const CURRENT_TERMS_VERSION = '1.0';
+  const acceptedTermsAt = new Date().toISOString();
+
+  // Create user if not exists or update accepted terms
   if (rows.length === 0) {
     const userId = crypto.randomUUID();
-    await query(db, `INSERT INTO users (id, email) VALUES ($1, $2)`, [userId, cleanEmail]);
+    await query(db, `INSERT INTO users (id, email, accepted_terms_at, terms_version) VALUES ($1, $2, $3, $4)`, [userId, cleanEmail, acceptedTermsAt, CURRENT_TERMS_VERSION]);
+  } else {
+    await query(db, `UPDATE users SET accepted_terms_at = $1, terms_version = $2, updated_at = datetime('now') WHERE id = $3`, [acceptedTermsAt, CURRENT_TERMS_VERSION, rows[0].id]);
   }
 
   // Generate & store OTP

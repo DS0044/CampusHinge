@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { authApi } from '../api';
 
 export default function SignupPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState(location.state?.email || '');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,12 +20,16 @@ export default function SignupPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setError('You must accept the Terms & Conditions to create an account.');
+      return;
+    }
     setError('');
     setSuccess('');
     setLoading(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const res = await authApi.signup(email);
+      const res = await authApi.signup(cleanEmail, true);
       sessionStorage.setItem(`otp_sent_at_${cleanEmail}`, Date.now().toString());
       setSuccess(res.message || 'OTP sent! Check your email.');
       setTimeout(() => navigate('/verify-otp', { state: { email: cleanEmail, isLogin: false } }), 800);
@@ -71,8 +76,92 @@ export default function SignupPage() {
             />
           </label>
 
-          <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem' }}>
-            {loading ? 'Sending Code...' : 'Continue with OTP →'}
+          {/* Mandatory Terms & Conditions Checkbox */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.65rem',
+              marginTop: '1rem',
+              marginBottom: '1.25rem',
+              textAlign: 'left',
+            }}
+          >
+            <input
+              type="checkbox"
+              id="terms-checkbox"
+              name="accepted_terms"
+              checked={acceptedTerms}
+              onChange={(e) => {
+                setAcceptedTerms(e.target.checked);
+                if (error) setError('');
+              }}
+              disabled={loading}
+              style={{
+                width: '18px',
+                height: '18px',
+                marginTop: '2px',
+                accentColor: 'var(--primary-pink)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            />
+            <label
+              htmlFor="terms-checkbox"
+              style={{
+                fontSize: '0.84rem',
+                lineHeight: '1.45',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                margin: 0,
+                fontWeight: 'normal',
+              }}
+            >
+              I agree to the{' '}
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-pink)',
+                  fontWeight: 600,
+                  textDecoration: 'underline',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                Terms & Conditions
+              </Link>{' '}
+              and{' '}
+              <Link
+                to="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-pink)',
+                  fontWeight: 600,
+                  textDecoration: 'underline',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                Privacy Policy
+              </Link>
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            id="create-account-btn"
+            className="btn-primary"
+            disabled={loading || !acceptedTerms}
+            style={{
+              marginTop: '0.5rem',
+              opacity: !acceptedTerms || loading ? 0.6 : 1,
+              cursor: !acceptedTerms || loading ? 'not-allowed' : 'pointer',
+              transition: 'opacity 0.2s ease',
+            }}
+          >
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
