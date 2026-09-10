@@ -8,21 +8,16 @@ export default function TermsOfServicePage() {
       {/* Navigation header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '1.25rem' }}>
         <button
-          onClick={() => {
-            if (window.history.length > 1) {
-              navigate(-1);
-            } else {
-              navigate('/signup');
-            }
-          }}
+          onClick={() => navigate('/signup')}
           className="btn-secondary"
           style={{
             padding: '0.5rem 1rem',
             fontSize: '0.85rem',
             borderRadius: 'var(--radius-full)',
+            cursor: 'pointer',
           }}
         >
-          ← Back
+          ← Back to Sign Up
         </button>
         <Link
           to="/privacy"
@@ -104,47 +99,42 @@ export default function TermsOfServicePage() {
           </p>
           <ul>
             <li><strong>Mutual Consent Matching:</strong> A match is formed only when two users mutually express interest ("Like"). Neither party can initiate direct messaging until mutual consent is established.</li>
-            <li><strong>Super-Likes:</strong> Users may send a Super-Like to express high priority interest. Free accounts are limited to one (1) Super-Like every rolling 24-hour period, with priority notifications displayed in the recipient's activity feed.</li>
-            <li><strong>Interest Affinity:</strong> Profiles display shared interests (such as coding, music, literature, sports). Shared interest counters assist in determining affinity ranking.</li>
-            <li><strong>No Guarantee:</strong> We do not warrant or guarantee that you will receive matches, responses, or romantic compatibility.</li>
+            <li><strong>Super-Like Capability:</strong> Users can send prioritized Super-Likes subject to campus affinity filters (such as requiring 4+ shared interests) and daily frequency limits.</li>
+            <li><strong>Daily Limits &amp; Cool-Off:</strong> Free accounts are subject to daily swipe quotas that reset every 24 hours to prevent spamming and automated swiping.</li>
           </ul>
         </section>
 
         <section>
-          <h2>6. Real-Time Chat &amp; Community Communications</h2>
+          <h2>6. Subscriptions &amp; Payments</h2>
           <p>
-            Upon matching, users are granted access to private, real-time messaging powered by live WebSocket connections. When using chat, you agree to:
+            CampusHinge may offer premium subscription plans ("CampusHinge Premium") that grant access to enhanced features such as unlimited swipes, profile rewinds, and match boosts:
           </p>
           <ul>
-            <li>Engage in polite, respectful, and consensual dialogue.</li>
-            <li>Never transmit unrequested sexually explicit photos, unsolicited links, commercial sales pitches, or scam messages.</li>
-            <li>Refrain from abusive language, stalking, persistent unwanted contact, intimidation, or extortion.</li>
-            <li>Acknowledge that conversations may be subject to automated abuse detection and administrative review in the event of user reporting.</li>
+            <li><strong>Billing &amp; Processing:</strong> Payments are processed via authorized payment gateways (e.g. Razorpay). By subscribing, you authorize recurring charges in accordance with the selected billing cycle.</li>
+            <li><strong>Refund Policy:</strong> All subscription fees are non-refundable except where required by applicable consumer protection laws.</li>
+            <li><strong>Cancellation:</strong> You may cancel your subscription at any time via your account settings. Access to premium features will continue until the end of the current billing cycle.</li>
           </ul>
         </section>
 
         <section>
-          <h2>7. Subscriptions, Paywalls &amp; Payments</h2>
+          <h2>7. User Conduct &amp; Safety Guidelines</h2>
           <p>
-            CampusHinge offers optional premium subscription plans (e.g., CampusHinge Gold/Plus) unlocking enhanced features such as unlimited swipes, the ability to see who liked your profile before swiping, additional super-likes, and profile badges:
+            You agree to interact respectfully with other members of the campus community. You must NOT:
           </p>
           <ul>
-            <li><strong>Payment Gateway:</strong> All financial transactions and renewals are securely processed through authorized payment gateways (including Razorpay). CampusHinge does not store complete credit card or debit card numbers on its servers.</li>
-            <li><strong>Subscription Validity:</strong> Paid privileges remain valid for the duration selected during purchase. When a subscription expires without renewal, accounts gracefully revert to standard free campus tier privileges.</li>
-            <li><strong>Refunds:</strong> Unless explicitly required by applicable statutory consumer protection laws in India, subscription fees and digital purchases are non-refundable once activated.</li>
+            <li>Harass, stalk, intimidate, bully, or defame any member of CampusHinge.</li>
+            <li>Send unsolicited explicit messages, solicitations, commercial promotions, or spam.</li>
+            <li>Publish or share private communications or photos of another user without their explicit consent.</li>
+            <li>Use the platform for commercial solicitation, prostitution, or human trafficking.</li>
           </ul>
         </section>
 
         <section>
-          <h2>8. Safety, In-App Reporting &amp; User Blocking</h2>
+          <h2>8. Intellectual Property</h2>
           <p>
-            Your emotional and physical well-being is our highest priority:
+            All visual designs, logos, software code, databases, and graphical elements associated with CampusHinge are the exclusive intellectual property of CampusHinge and its licensors.
+            You may not copy, modify, distribute, or reverse-engineer any portion of the service.
           </p>
-          <ul>
-            <li><strong>Immediate User Blocking:</strong> You can block any matched user at any moment. Blocking instantly severs the match, deletes reciprocal chat visibility, and prevents future discovery on either user's feed.</li>
-            <li><strong>Reporting System:</strong> If you observe any behavior that violates these Terms or poses a threat, you are strongly urged to submit an in-app report detailing the offense.</li>
-            <li><strong>Real-World Meetups:</strong> When deciding to meet a match offline on or off campus, always choose public locations (such as campus cafeterias, libraries, or busy student centers), notify trusted friends or roommates, and arrange your own transportation.</li>
-          </ul>
         </section>
 
         <section>
@@ -158,58 +148,43 @@ export default function TermsOfServicePage() {
             <li>You maintain ownership of your photographs and personal text, granting CampusHinge a limited license solely necessary to host, display, and deliver content within the platform.</li>
             <li>For comprehensive disclosures on data collection, local storage tokens, and retention periods, consult our <Link to="/privacy" style={{ color: 'var(--primary-pink)' }}>Privacy Policy</Link>.</li>
           </ul>
-        </section>
-
-        <section>
-          <h2>10. Account Suspension, Termination &amp; Bans</h2>
-          <p>
-            We reserve the unconditional right to investigate reports and unilaterally suspend, deactivate, or permanently ban any account, without liability or refund, if:
-          </p>
-          <ul>
-            <li>You violate any clause of these Terms or engage in conduct detrimental to the campus community.</li>
-            <li>Your university email address is deactivated, revoked, or found to be invalid.</li>
-            <li>You engage in fraudulent payment chargebacks or unauthorized transactions.</li>
-            <li>You attempt to reverse-engineer, scrape, DDoS, or breach the application's APIs, databases, or WebSocket servers.</li>
-          </ul>
-          <p>
-            You may also voluntary discontinue your use of the Platform and delete your account and associated profile data at any time via in-app profile settings.
-          </p>
-        </section>
-
-        <section>
-          <h2>11. Disclaimer of Warranties &amp; Limitation of Liability</h2>
-          <p>
-            CampusHinge is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis without warranties of any kind, whether express or implied.
-            To the fullest extent permissible under applicable law, CampusHinge, its developers, operators, and affiliates disclaim all liability for any indirect,
-            punitive, incidental, or consequential damages resulting from user conduct, offline interactions, loss of data, or service interruptions.
-          </p>
-        </section>
-
-        <section>
-          <h2>12. Updates to Terms &amp; Version Tracking</h2>
-          <p>
-            We may revise and update these Terms from time to time to accommodate new features, security protocols, or legal obligations.
-            Any updates will be reflected with a revised <strong>"Last updated"</strong> date and incremented <strong>terms_version</strong> in our system.
-            Your continuous usage of CampusHinge following any updates constitutes your explicit agreement and acceptance of the revised Terms.
-          </p>
-        </section>
-
-        <section>
-          <h2>13. Governing Law &amp; Dispute Resolution</h2>
-          <p>
-            These Terms &amp; Conditions are governed by and construed in accordance with the substantive laws of India. Any claim or dispute arising out
-            of or relating to CampusHinge shall be subject to the exclusive jurisdiction of the competent courts located in Bhopal, Madhya Pradesh, India.
-          </p>
-        </section>
-
-        <section>
-          <h2>14. Contact &amp; Support</h2>
-          <p>
-            If you have questions, inquiries, or feedback regarding these Terms, please reach out to our administration team at:
-          </p>
           <p style={{ color: 'var(--primary-pink)', fontWeight: 600 }}>
             📧 dd961847@gmail.com
           </p>
+        </section>
+
+        {/* Accept & Return Action Section */}
+        <section style={{ marginTop: '2rem', padding: '1.25rem', background: 'rgba(255, 64, 129, 0.06)', borderRadius: '12px', border: '1px solid rgba(255, 64, 129, 0.25)', textAlign: 'center' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '0.4rem', color: '#fff' }}>Ready to create your account?</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
+            By tapping below, you agree to these Terms &amp; Conditions and can complete verification.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+            <button
+              onClick={() => {
+                sessionStorage.setItem('acceptedTerms', 'true');
+                navigate('/signup', { state: { acceptedTerms: true } });
+              }}
+              className="btn-primary"
+              style={{ width: '100%', maxWidth: '320px', cursor: 'pointer', padding: '0.9rem 1.5rem', fontSize: '0.95rem' }}
+            >
+              ✓ Agree &amp; Return to Sign Up
+            </button>
+            <button
+              onClick={() => navigate('/signup')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                padding: '0.3rem',
+              }}
+            >
+              ← Back to Sign Up without agreeing
+            </button>
+          </div>
         </section>
       </div>
     </div>

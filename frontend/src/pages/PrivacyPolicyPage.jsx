@@ -7,13 +7,7 @@ export default function PrivacyPolicyPage() {
     <div className="page legal-page" style={{ justifyContent: 'flex-start' }}>
       {/* Back button */}
       <button
-        onClick={() => {
-          if (window.history.length > 1) {
-            navigate(-1);
-          } else {
-            navigate('/signup');
-          }
-        }}
+        onClick={() => navigate('/signup')}
         className="btn-secondary"
         style={{
           alignSelf: 'flex-start',
@@ -21,9 +15,10 @@ export default function PrivacyPolicyPage() {
           fontSize: '0.85rem',
           marginBottom: '1rem',
           borderRadius: 'var(--radius-full)',
+          cursor: 'pointer',
         }}
       >
-        ← Back
+        ← Back to Sign Up
       </button>
 
       <div className="glass-card" style={{ marginBottom: '1.5rem' }}>

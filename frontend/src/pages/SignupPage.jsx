@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { authApi, setToken } from '../api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const location = useLocation();
+  const [acceptedTerms, setAcceptedTerms] = useState(
+    () => location.state?.acceptedTerms ?? (sessionStorage.getItem('acceptedTerms') === 'true')
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -15,7 +18,14 @@ export default function SignupPage() {
   const acceptedTermsRef = useRef(acceptedTerms);
 
   useEffect(() => {
+    if (location.state?.acceptedTerms) {
+      setAcceptedTerms(true);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
     acceptedTermsRef.current = acceptedTerms;
+    sessionStorage.setItem('acceptedTerms', acceptedTerms ? 'true' : 'false');
   }, [acceptedTerms]);
 
   useEffect(() => {
@@ -141,26 +151,39 @@ export default function SignupPage() {
         </p>
 
         {/* Mandatory Terms & Conditions Checkbox */}
-        <div
+        <label
+          htmlFor="signup-terms-checkbox"
           className={`terms-container ${acceptedTerms ? 'checked' : ''}`}
-          onClick={() => {
-            if (loading) return;
-            setAcceptedTerms((prev) => !prev);
-            if (error) setError('');
-          }}
-          role="checkbox"
-          aria-checked={acceptedTerms}
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === ' ' || e.key === 'Enter') {
-              e.preventDefault();
+          style={{ cursor: 'pointer' }}
+        >
+          <input
+            type="checkbox"
+            id="signup-terms-checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => {
+              if (loading) return;
+              setAcceptedTerms(e.target.checked);
+              if (error) setError('');
+            }}
+            style={{
+              position: 'absolute',
+              opacity: 0,
+              width: '1px',
+              height: '1px',
+              margin: '-1px',
+              overflow: 'hidden',
+              clip: 'rect(0, 0, 0, 0)',
+            }}
+          />
+          <div
+            className="terms-checkbox-box"
+            onClick={(e) => {
+              e.stopPropagation();
               if (loading) return;
               setAcceptedTerms((prev) => !prev);
               if (error) setError('');
-            }
-          }}
-        >
-          <div className="terms-checkbox-box">
+            }}
+          >
             {acceptedTerms && (
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                 <path
@@ -177,8 +200,6 @@ export default function SignupPage() {
             I agree to the{' '}
             <Link
               to="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
               className="terms-link"
               onClick={(e) => e.stopPropagation()}
             >
@@ -187,15 +208,13 @@ export default function SignupPage() {
             and{' '}
             <Link
               to="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
               className="terms-link"
               onClick={(e) => e.stopPropagation()}
             >
               Privacy Policy
             </Link>
           </span>
-        </div>
+        </label>
 
         {!acceptedTerms && (
           <p
