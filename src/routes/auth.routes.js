@@ -1,10 +1,13 @@
 const { Router } = require('express');
-const { signup, login, verifyOtp, resendOtp } = require('../controllers/auth.controller');
+const { signup, login, verifyOtp, resendOtp, googleAuth } = require('../controllers/auth.controller');
 const { validate } = require('../middleware/validate');
 const { signupSchema, verifyOtpSchema, resendOtpSchema } = require('../validators/auth.schema');
 const { otpRateLimiter, resendOtpRateLimiter } = require('../middleware/rateLimiter');
 
 const router = Router();
+
+// POST /api/auth/google — Google Sign-In
+router.post('/google', googleAuth);
 
 // POST /api/auth/signup — register with campus email, sends OTP
 router.post('/signup', otpRateLimiter, validate(signupSchema), signup);

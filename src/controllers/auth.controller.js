@@ -103,16 +103,16 @@ async function login(req, res, next) {
     let { rows } = await db.query(`SELECT id, is_banned FROM users WHERE LOWER(email) = LOWER($1)`, [cleanEmail]);
 
     if (rows.length === 0) {
-      console.warn(`🔐  [AUTH LOGIN] ✗ User not found: ${cleanEmail}`);
-      throw new AppError('No account found for this campus email. Please create an account first.', 404);
-    }
-
-    if (rows[0].is_banned) {
+      const crypto = require('crypto');
+      const userId = crypto.randomUUID();
+      await db.query(`INSERT INTO users (id, email) VALUES ($1, $2)`, [userId, cleanEmail]);
+      console.log(`🔐  [AUTH LOGIN] ✓ New user created (id=${userId})`);
+    } else if (rows[0].is_banned) {
       console.warn(`🔐  [AUTH LOGIN] ✗ User is banned: ${cleanEmail}`);
       throw new AppError('This account has been suspended.', 403);
+    } else {
+      console.log(`🔐  [AUTH LOGIN] ✓ Existing user found (id=${rows[0].id})`);
     }
-
-    console.log(`🔐  [AUTH LOGIN] ✓ Existing user found (id=${rows[0].id})`);
 
     // 4. Generate OTP
     console.log(`🔐  [AUTH LOGIN] Step 4: Generating OTP…`);
@@ -314,4 +314,122 @@ async function resendOtp(req, res, next) {
   }
 }
 
-module.exports = { signup, login, verifyOtp, resendOtp };
+/**
+ * POST /api/auth/google
+ * Google Sign-In verification and JWT issue
+ */
+async function googleAuth(req, res, next) {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      throw new AppError('Missing Google credential token.', 400);
+    }
+
+    // 1. Verify with Google's tokeninfo endpoint
+    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!verifyRes.ok) {
+      throw new AppError('Invalid Google sign-in token. Please try again.', 401);
+    }
+    const verified = await verifyRes.json();
+
+    const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+    if (expectedClientId && verified.aud !== expectedClientId) {
+      throw new AppError('Token audience mismatch', 401);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    if (verified.exp && parseInt(verified.exp, 10) < now) {
+      throw new AppError('Token has expired', 401);
+    }
+
+    const cleanEmail = (verified.email || '').trim().toLowerCase();
+    const emailVerified = verified.email_verified === 'true' || verified.email_verified === true;
+
+    if (!emailVerified) {
+      throw new AppError('Your Google email is not verified.', 403);
+    }
+
+    // 2. Validate domain / allowlist (includes ALLOWED_EXTRA_EMAILS)
+    if (!isAllowedDomain(cleanEmail)) {
+      throw new AppError(
+        'Only verified campus email addresses are allowed. Please sign in with your college email (e.g. @vitbhopal.ac.in).',
+        403
+      );
+    }
+
+    // 3. Find or create user
+    let { rows } = await db.query(
+      `SELECT id, email, role, subscription_status, subscription_expiry, is_banned, profile_completed FROM users WHERE LOWER(email) = LOWER($1)`,
+      [cleanEmail]
+    );
+
+    if (rows.length > 0 && rows[0].is_banned) {
+      throw new AppError('This account has been suspended.', 403);
+    }
+
+    let user;
+    if (rows.length === 0) {
+      const crypto = require('crypto');
+      const userId = crypto.randomUUID();
+      await db.query(
+        `INSERT INTO users (id, email, email_verified, profile_completed) VALUES ($1, $2, 1, 0)`,
+        [userId, cleanEmail]
+      );
+      const { rows: newRows } = await db.query(
+        `SELECT id, email, role, subscription_status, subscription_expiry, is_banned, profile_completed FROM users WHERE id = $1`,
+        [userId]
+      );
+      user = newRows[0];
+      console.log(`✅ [GOOGLE AUTH] New user created: ${cleanEmail}`);
+    } else {
+      user = rows[0];
+      await db.query(`UPDATE users SET email_verified = 1 WHERE id = $1`, [user.id]);
+      console.log(`✅ [GOOGLE AUTH] Existing user signed in: ${cleanEmail}`);
+    }
+
+    // Check profile completion
+    let isProfileCompleted = Boolean(user.profile_completed);
+    if (!isProfileCompleted) {
+      const { rows: profileRows } = await db.query(
+        `SELECT id, photos FROM profiles WHERE user_id = $1`,
+        [user.id]
+      );
+      if (profileRows.length > 0) {
+        try {
+          const photos = typeof profileRows[0].photos === 'string'
+            ? JSON.parse(profileRows[0].photos)
+            : profileRows[0].photos;
+          if (Array.isArray(photos) && photos.length >= 2) {
+            isProfileCompleted = true;
+            await db.query(`UPDATE users SET profile_completed = 1 WHERE id = $1`, [user.id]);
+          }
+        } catch {}
+      }
+    }
+
+    // 4. Issue JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role || 'student' },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role || 'student',
+          profile_completed: isProfileCompleted,
+          has_profile: isProfileCompleted,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { signup, login, verifyOtp, resendOtp, googleAuth };

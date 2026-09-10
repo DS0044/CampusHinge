@@ -45,7 +45,6 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [connectionStatus, setConnectionStatus] = useState('connected');
   const [partnerTyping, setPartnerTyping] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -128,9 +127,8 @@ export default function ChatPage() {
       }
     });
 
-    // Connection state
+    // Connection state — silently refresh messages on reconnect
     const unsubConnection = onConnectionStateChange((state) => {
-      setConnectionStatus(state);
       if (state === 'connected') {
         loadMessages(true); // silent background refresh
       }
@@ -277,24 +275,7 @@ export default function ChatPage() {
 
   return (
     <div className="page chat-container" style={{ paddingBottom: '1rem' }}>
-      {/* Reconnection Banner */}
-      {connectionStatus !== 'connected' && (
-        <div style={{
-          background: connectionStatus === 'connecting'
-            ? 'linear-gradient(90deg, #ff9800, #ff5722)'
-            : 'linear-gradient(90deg, #f44336, #d32f2f)',
-          color: '#fff',
-          textAlign: 'center',
-          padding: '0.4rem 0.8rem',
-          fontSize: '0.78rem',
-          fontWeight: '600',
-          borderRadius: 'var(--radius-sm)',
-          marginBottom: '0.5rem',
-          animation: 'pulse 2s infinite',
-        }}>
-          {connectionStatus === 'connecting' ? '⟳ Reconnecting...' : '⚠ Disconnected — messages may be delayed'}
-        </div>
-      )}
+
 
       <div className="chat-header">
         <button

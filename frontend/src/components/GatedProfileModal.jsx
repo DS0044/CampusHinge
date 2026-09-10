@@ -340,22 +340,9 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                   </div>
                 )}
 
-                {/* Free Messaging & Chat Action Button */}
+                {/* Chat Action Button */}
                 {(profile.match_id || matchInfo?.matchId) && (
-                  <div style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                    <div
-                      style={{
-                        fontSize: '0.78rem',
-                        color: '#fbcfe8',
-                        textAlign: 'center',
-                        background: 'rgba(236, 72, 153, 0.15)',
-                        padding: '0.35rem 0.6rem',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(244, 114, 182, 0.3)',
-                      }}
-                    >
-                      ⚡ 2 Free Messages allowed in this match
-                    </div>
+                  <div style={{ marginTop: '0.8rem' }}>
                     <button
                       className="btn-primary"
                       onClick={() => {
@@ -364,7 +351,7 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                       }}
                       style={{ width: '100%', padding: '0.75rem 1rem', fontSize: '0.92rem' }}
                     >
-                      💬 Send Free Message & Chat
+                      💬 Chat
                     </button>
                   </div>
                 )}

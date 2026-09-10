@@ -234,7 +234,7 @@ export default function NotificationsPage() {
                     {notif.type === 'message'
                       ? 'Tap to view conversation and reply 💬'
                       : isRevealed
-                      ? 'Mutual match active! Tap to send free message 💬'
+                      ? 'Mutual match active! Tap to chat 💬'
                       : 'Like them back to reveal their full photo & name.'}
                   </p>
                 </div>
@@ -254,7 +254,7 @@ export default function NotificationsPage() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {notif.type === 'message' ? '💬 Reply' : '💬 Chat (2 Free)'}
+                    {notif.type === 'message' ? '💬 Reply' : '💬 Chat'}
                   </button>
                 ) : !isRevealed ? (
                   <button
