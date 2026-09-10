@@ -8,7 +8,13 @@ export default function TermsOfServicePage() {
       {/* Navigation header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '1.25rem' }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/signup');
+            }
+          }}
           className="btn-secondary"
           style={{
             padding: '0.5rem 1rem',
