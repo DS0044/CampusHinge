@@ -12,6 +12,11 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const googleBtnRef = useRef(null);
   const initializedRef = useRef(false);
+  const acceptedTermsRef = useRef(acceptedTerms);
+
+  useEffect(() => {
+    acceptedTermsRef.current = acceptedTerms;
+  }, [acceptedTerms]);
 
   // If already authenticated, redirect to discover
   useEffect(() => {
@@ -28,7 +33,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (!acceptedTerms) {
+    if (!acceptedTermsRef.current) {
       setError('You must accept the Terms & Conditions and Privacy Policy to continue.');
       return;
     }
@@ -58,7 +63,7 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }, [navigate, acceptedTerms]);
+  }, [navigate]);
 
   // Initialize Google Identity Services
   useEffect(() => {
@@ -332,7 +337,7 @@ export default function LoginPage() {
           🔒 Only students with verified college accounts can join.
         </p>
         <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-          Prefer email code?{' '}
+          Don't have an account?{' '}
           <Link
             to="/signup"
             style={{
