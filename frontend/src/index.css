@@ -141,6 +141,81 @@ input::placeholder, textarea::placeholder {
   color: var(--text-dim);
 }
 
+/* ── Custom Terms & Conditions Checkbox ── */
+.terms-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 1.25rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.terms-container:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.terms-container.checked {
+  background: rgba(255, 64, 129, 0.05);
+  border-color: rgba(255, 64, 129, 0.4);
+  box-shadow: 0 0 20px rgba(255, 64, 129, 0.1);
+}
+
+.terms-checkbox-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.2s ease;
+}
+
+.terms-container:hover .terms-checkbox-box {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.terms-container.checked .terms-checkbox-box {
+  background: var(--primary-gradient);
+  border-color: transparent;
+  box-shadow: 0 0 8px rgba(255, 64, 129, 0.5);
+}
+
+.terms-checkbox-label {
+  display: inline !important;
+  flex-direction: row !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-size: 0.84rem !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: var(--text-muted) !important;
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+.terms-link {
+  color: var(--primary-pink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.terms-link:hover {
+  color: #ff75a0;
+}
+
 button {
   display: inline-flex;
   align-items: center;

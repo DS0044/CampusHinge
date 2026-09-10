@@ -142,59 +142,44 @@ export default function SignupPage() {
 
         {/* Mandatory Terms & Conditions Checkbox */}
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.65rem',
-            marginBottom: '1.25rem',
-            textAlign: 'left',
-            padding: '0.8rem 0.95rem',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: 10,
-            border: acceptedTerms ? '1px solid rgba(255, 64, 129, 0.45)' : '1px solid var(--glass-border)',
-            transition: 'border-color 0.2s ease',
+          className={`terms-container ${acceptedTerms ? 'checked' : ''}`}
+          onClick={() => {
+            if (loading) return;
+            setAcceptedTerms((prev) => !prev);
+            if (error) setError('');
+          }}
+          role="checkbox"
+          aria-checked={acceptedTerms}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault();
+              if (loading) return;
+              setAcceptedTerms((prev) => !prev);
+              if (error) setError('');
+            }
           }}
         >
-          <input
-            type="checkbox"
-            id="signup-terms-checkbox"
-            checked={acceptedTerms}
-            onChange={(e) => {
-              setAcceptedTerms(e.target.checked);
-              if (error) setError('');
-            }}
-            disabled={loading}
-            style={{
-              width: '18px',
-              height: '18px',
-              marginTop: '2px',
-              accentColor: 'var(--primary-pink)',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          />
-          <label
-            htmlFor="signup-terms-checkbox"
-            style={{
-              fontSize: '0.84rem',
-              lineHeight: '1.45',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              userSelect: 'none',
-              margin: 0,
-              fontWeight: 'normal',
-            }}
-          >
+          <div className="terms-checkbox-box">
+            {acceptedTerms && (
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2.5 7.5L5.5 10.5L11.5 3.5"
+                  stroke="#fff"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </div>
+          <span className="terms-checkbox-label">
             I agree to the{' '}
             <Link
               to="/terms"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                color: 'var(--primary-pink)',
-                fontWeight: 600,
-                textDecoration: 'underline',
-              }}
+              className="terms-link"
               onClick={(e) => e.stopPropagation()}
             >
               Terms &amp; Conditions
@@ -204,29 +189,25 @@ export default function SignupPage() {
               to="/privacy"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                color: 'var(--primary-pink)',
-                fontWeight: 600,
-                textDecoration: 'underline',
-              }}
+              className="terms-link"
               onClick={(e) => e.stopPropagation()}
             >
               Privacy Policy
             </Link>
-          </label>
+          </span>
         </div>
 
         {!acceptedTerms && (
           <p
             style={{
               fontSize: '0.78rem',
-              color: 'var(--primary-pink)',
+              color: 'var(--text-dim)',
               textAlign: 'center',
               marginBottom: '0.85rem',
               marginTop: '-0.5rem',
             }}
           >
-            👆 Please check the box above to accept the Terms &amp; Conditions to sign up.
+            Please accept the terms to continue with Google sign-up
           </p>
         )}
 
