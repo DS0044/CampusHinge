@@ -5,18 +5,12 @@ import { authApi, setToken } from '../api';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function LoginPage() {
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const googleBtnRef = useRef(null);
   const initializedRef = useRef(false);
-  const acceptedTermsRef = useRef(acceptedTerms);
-
-  useEffect(() => {
-    acceptedTermsRef.current = acceptedTerms;
-  }, [acceptedTerms]);
 
   // If already authenticated, redirect to discover
   useEffect(() => {
@@ -30,11 +24,6 @@ export default function LoginPage() {
   const handleGoogleResponse = useCallback(async (response) => {
     if (!response?.credential) {
       setError('Google sign-in failed. Please try again.');
-      return;
-    }
-
-    if (!acceptedTermsRef.current) {
-      setError('You must accept the Terms & Conditions and Privacy Policy to continue.');
       return;
     }
 
@@ -140,99 +129,9 @@ export default function LoginPage() {
       {/* Main Glass Card */}
       <div className="glass-card">
         <h2 style={{ marginBottom: '0.35rem', textAlign: 'center' }}>Welcome to CampusHinge</h2>
-        <p style={{ marginBottom: '1.25rem', fontSize: '0.88rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          Sign in or create your campus-verified account.
+        <p style={{ marginBottom: '1.5rem', fontSize: '0.88rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          Sign in to your campus-verified account.
         </p>
-
-        {/* Mandatory Terms & Conditions Checkbox */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.65rem',
-            marginBottom: '1.25rem',
-            textAlign: 'left',
-            padding: '0.8rem 0.95rem',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: 10,
-            border: acceptedTerms ? '1px solid rgba(255, 64, 129, 0.45)' : '1px solid var(--glass-border)',
-            transition: 'border-color 0.2s ease',
-          }}
-        >
-          <input
-            type="checkbox"
-            id="login-terms-checkbox"
-            checked={acceptedTerms}
-            onChange={(e) => {
-              setAcceptedTerms(e.target.checked);
-              if (error) setError('');
-            }}
-            disabled={loading}
-            style={{
-              width: '18px',
-              height: '18px',
-              marginTop: '2px',
-              accentColor: 'var(--primary-pink)',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          />
-          <label
-            htmlFor="login-terms-checkbox"
-            style={{
-              fontSize: '0.84rem',
-              lineHeight: '1.45',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              userSelect: 'none',
-              margin: 0,
-              fontWeight: 'normal',
-            }}
-          >
-            I agree to the{' '}
-            <Link
-              to="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: 'var(--primary-pink)',
-                fontWeight: 600,
-                textDecoration: 'underline',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Terms &amp; Conditions
-            </Link>{' '}
-            and{' '}
-            <Link
-              to="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: 'var(--primary-pink)',
-                fontWeight: 600,
-                textDecoration: 'underline',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Privacy Policy
-            </Link>
-          </label>
-        </div>
-
-        {!acceptedTerms && (
-          <p
-            style={{
-              fontSize: '0.78rem',
-              color: 'var(--primary-pink)',
-              textAlign: 'center',
-              marginBottom: '0.85rem',
-              marginTop: '-0.5rem',
-            }}
-          >
-            👆 Please check the box above to accept the Terms &amp; Conditions to sign in.
-          </p>
-        )}
 
         {/* Google Sign-In Button */}
         <div
@@ -244,14 +143,7 @@ export default function LoginPage() {
             width: '100%',
           }}
         >
-          <div
-            style={{ width: '100%', position: 'relative' }}
-            onClick={() => {
-              if (!acceptedTerms) {
-                setError('Please check the box to agree to the Terms & Conditions and Privacy Policy.');
-              }
-            }}
-          >
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
             {/* Google's rendered button */}
             <div
               ref={googleBtnRef}
@@ -261,8 +153,8 @@ export default function LoginPage() {
                 minHeight: 44,
                 display: 'flex',
                 justifyContent: 'center',
-                opacity: !acceptedTerms || loading ? 0.45 : 1,
-                pointerEvents: !acceptedTerms || loading ? 'none' : 'auto',
+                opacity: loading ? 0.45 : 1,
+                pointerEvents: loading ? 'none' : 'auto',
                 transition: 'opacity 0.2s ease',
               }}
             />
