@@ -7,7 +7,7 @@ export default function PrivacyPolicyPage() {
     <div className="page legal-page" style={{ justifyContent: 'flex-start' }}>
       {/* Back button */}
       <button
-        onClick={() => navigate('/signup')}
+        onClick={() => navigate('/login')}
         className="btn-secondary"
         style={{
           alignSelf: 'flex-start',
@@ -18,7 +18,7 @@ export default function PrivacyPolicyPage() {
           cursor: 'pointer',
         }}
       >
-        ← Back to Sign Up
+        ← Back to Sign In
       </button>
 
       <div className="glass-card" style={{ marginBottom: '1.5rem' }}>

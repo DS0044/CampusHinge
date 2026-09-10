@@ -46,7 +46,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to={token ? '/discover' : '/login'} replace />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />

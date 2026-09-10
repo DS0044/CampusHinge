@@ -8,7 +8,7 @@ export default function TermsOfServicePage() {
       {/* Navigation header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '1.25rem' }}>
         <button
-          onClick={() => navigate('/signup')}
+          onClick={() => navigate('/login')}
           className="btn-secondary"
           style={{
             padding: '0.5rem 1rem',
@@ -17,7 +17,7 @@ export default function TermsOfServicePage() {
             cursor: 'pointer',
           }}
         >
-          ← Back to Sign Up
+          ← Back to Sign In
         </button>
         <Link
           to="/privacy"
@@ -163,15 +163,15 @@ export default function TermsOfServicePage() {
             <button
               onClick={() => {
                 sessionStorage.setItem('acceptedTerms', 'true');
-                navigate('/signup', { state: { acceptedTerms: true } });
+                navigate('/login', { state: { acceptedTerms: true } });
               }}
               className="btn-primary"
               style={{ width: '100%', maxWidth: '320px', cursor: 'pointer', padding: '0.9rem 1.5rem', fontSize: '0.95rem' }}
             >
-              ✓ Agree &amp; Return to Sign Up
+              ✓ Agree &amp; Return to Sign In
             </button>
             <button
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate('/login')}
               style={{
                 background: 'none',
                 border: 'none',
@@ -182,7 +182,7 @@ export default function TermsOfServicePage() {
                 padding: '0.3rem',
               }}
             >
-              ← Back to Sign Up without agreeing
+              ← Back to Sign In without agreeing
             </button>
           </div>
         </section>

@@ -1,16 +1,32 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { authApi, setToken } from '../api';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [acceptedTerms, setAcceptedTerms] = useState(
+    () => location.state?.acceptedTerms ?? (sessionStorage.getItem('acceptedTerms') === 'true')
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const navigate = useNavigate();
   const googleBtnRef = useRef(null);
   const initializedRef = useRef(false);
+  const acceptedTermsRef = useRef(acceptedTerms);
+
+  useEffect(() => {
+    if (location.state?.acceptedTerms) {
+      setAcceptedTerms(true);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    acceptedTermsRef.current = acceptedTerms;
+    sessionStorage.setItem('acceptedTerms', acceptedTerms ? 'true' : 'false');
+  }, [acceptedTerms]);
 
   // If already authenticated, redirect to discover
   useEffect(() => {
@@ -24,6 +40,11 @@ export default function LoginPage() {
   const handleGoogleResponse = useCallback(async (response) => {
     if (!response?.credential) {
       setError('Google sign-in failed. Please try again.');
+      return;
+    }
+
+    if (!acceptedTermsRef.current) {
+      setError('You must accept the Terms & Conditions and Privacy Policy to continue.');
       return;
     }
 
@@ -129,9 +150,89 @@ export default function LoginPage() {
       {/* Main Glass Card */}
       <div className="glass-card">
         <h2 style={{ marginBottom: '0.35rem', textAlign: 'center' }}>Welcome to CampusHinge</h2>
-        <p style={{ marginBottom: '1.5rem', fontSize: '0.88rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          Sign in to your campus-verified account.
+        <p style={{ marginBottom: '1.25rem', fontSize: '0.88rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          Sign in or create your campus-verified account.
         </p>
+
+        {/* Mandatory Terms & Conditions Checkbox */}
+        <label
+          htmlFor="login-terms-checkbox"
+          className={`terms-container ${acceptedTerms ? 'checked' : ''}`}
+          style={{ cursor: 'pointer' }}
+        >
+          <input
+            type="checkbox"
+            id="login-terms-checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => {
+              if (loading) return;
+              setAcceptedTerms(e.target.checked);
+              if (error) setError('');
+            }}
+            style={{
+              position: 'absolute',
+              opacity: 0,
+              width: '1px',
+              height: '1px',
+              margin: '-1px',
+              overflow: 'hidden',
+              clip: 'rect(0, 0, 0, 0)',
+            }}
+          />
+          <div
+            className="terms-checkbox-box"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (loading) return;
+              setAcceptedTerms((prev) => !prev);
+              if (error) setError('');
+            }}
+          >
+            {acceptedTerms && (
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2.5 7.5L5.5 10.5L11.5 3.5"
+                  stroke="#fff"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </div>
+          <span className="terms-checkbox-label">
+            I agree to the{' '}
+            <Link
+              to="/terms"
+              className="terms-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Terms &amp; Conditions
+            </Link>{' '}
+            and{' '}
+            <Link
+              to="/privacy"
+              className="terms-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Privacy Policy
+            </Link>
+          </span>
+        </label>
+
+        {!acceptedTerms && (
+          <p
+            style={{
+              fontSize: '0.78rem',
+              color: 'var(--text-dim)',
+              textAlign: 'center',
+              marginBottom: '0.85rem',
+              marginTop: '-0.5rem',
+            }}
+          >
+            Please accept the terms to continue with Google sign-in
+          </p>
+        )}
 
         {/* Google Sign-In Button */}
         <div
@@ -143,7 +244,14 @@ export default function LoginPage() {
             width: '100%',
           }}
         >
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <div
+            style={{ width: '100%', position: 'relative' }}
+            onClick={() => {
+              if (!acceptedTerms) {
+                setError('Please check the box to agree to the Terms & Conditions and Privacy Policy.');
+              }
+            }}
+          >
             {/* Google's rendered button */}
             <div
               ref={googleBtnRef}
@@ -153,8 +261,8 @@ export default function LoginPage() {
                 minHeight: 44,
                 display: 'flex',
                 justifyContent: 'center',
-                opacity: loading ? 0.45 : 1,
-                pointerEvents: loading ? 'none' : 'auto',
+                opacity: !acceptedTerms || loading ? 0.45 : 1,
+                pointerEvents: !acceptedTerms || loading ? 'none' : 'auto',
                 transition: 'opacity 0.2s ease',
               }}
             />
@@ -227,19 +335,6 @@ export default function LoginPage() {
       <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
         <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
           🔒 Only students with verified college accounts can join.
-        </p>
-        <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-          Don't have an account?{' '}
-          <Link
-            to="/signup"
-            style={{
-              color: 'var(--primary-pink)',
-              fontWeight: 600,
-              textDecoration: 'underline',
-            }}
-          >
-            Create Account
-          </Link>
         </p>
       </div>
 
