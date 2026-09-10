@@ -13,7 +13,10 @@ function resetDatabase() {
     DELETE FROM subscriptions;
     DELETE FROM profiles;
     DELETE FROM otp_codes;
+    DELETE FROM swipe_preferences;
+    DELETE FROM interest_popularity;
     DELETE FROM users;
+    VACUUM;
   `);
 
   console.log('✨  All database tables cleared and dataset reset successfully!');
