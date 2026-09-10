@@ -207,6 +207,7 @@ export default function ProfileSetupPage() {
     setPhotoError('');
 
     if (!isNameValid) {
+      setTouched((prev) => ({ ...prev, name: true }));
       setError('Display Name is required.');
       return;
     }
@@ -263,7 +264,29 @@ export default function ProfileSetupPage() {
       };
 
       await profileApi.createOrUpdate(payload);
-      navigate('/discover');
+
+      // Update stored user state
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        storedUser.profile_completed = true;
+        storedUser.has_profile = true;
+        localStorage.setItem('user', JSON.stringify(storedUser));
+        localStorage.setItem('profile_completed', 'true');
+      } catch {}
+
+      // Automatically open the Discover page
+      try {
+        navigate('/discover', { replace: true });
+      } catch {
+        window.location.replace('/discover');
+      }
+
+      // Fallback timer to guarantee navigation to Discover page
+      setTimeout(() => {
+        if (window.location.pathname !== '/discover') {
+          window.location.replace('/discover');
+        }
+      }, 100);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -673,8 +696,9 @@ export default function ProfileSetupPage() {
           <button 
             type="submit" 
             className="btn-primary" 
-            disabled={loading || !isFormValid} 
+            disabled={loading} 
             style={{ marginTop: '1rem', width: '100%' }}
+            aria-label="Save and Continue"
           >
             {loading ? 'Saving Profile...' : 'Save & Continue'}
           </button>

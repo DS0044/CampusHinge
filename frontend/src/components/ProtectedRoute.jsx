@@ -5,8 +5,19 @@ import { profileApi } from '../api';
 export default function ProtectedRoute({ children, requireCompletedProfile = true }) {
   const location = useLocation();
   const token = localStorage.getItem('token');
-  const [checking, setChecking] = useState(true);
-  const [isCompleted, setIsCompleted] = useState(null);
+  const [checking, setChecking] = useState(() => {
+    if (!token) return false;
+    return localStorage.getItem('profile_completed') !== 'true';
+  });
+  const [isCompleted, setIsCompleted] = useState(() => {
+    try {
+      if (localStorage.getItem('profile_completed') === 'true') return true;
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return Boolean(u.profile_completed || u.has_profile);
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     if (!token) {
@@ -33,17 +44,22 @@ export default function ProtectedRoute({ children, requireCompletedProfile = tru
       }
 
       const completed = Boolean(
-        p &&
-        p.name &&
-        p.gender &&
-        p.interested_in &&
-        photoCount >= 2
+        p && (
+          p.profile_completed ||
+          p.has_profile ||
+          (p.name && p.gender && p.interested_in && photoCount >= 2)
+        )
       );
 
+      if (completed) {
+        localStorage.setItem('profile_completed', 'true');
+      }
       setIsCompleted(completed);
     } catch (err) {
       // Profile does not exist yet
-      setIsCompleted(false);
+      if (localStorage.getItem('profile_completed') !== 'true') {
+        setIsCompleted(false);
+      }
     } finally {
       setChecking(false);
     }
