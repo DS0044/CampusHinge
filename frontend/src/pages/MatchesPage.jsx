@@ -23,7 +23,7 @@ export default function MatchesPage() {
       setMatches((prev) =>
         prev.map((m) => {
           const mid = m.match_id || m.id;
-          if (mid === msg.match_id) {
+          if (String(mid) === String(msg.match_id)) {
             return { ...m, last_message: msg.content, last_message_at: msg.created_at };
           }
           return m;

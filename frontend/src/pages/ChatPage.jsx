@@ -104,9 +104,10 @@ export default function ChatPage() {
     // Join this match room
     joinMatch(matchId);
 
-    // Listen for incoming messages
+    // Listen for incoming messages via Socket.IO (instant path)
     const unsubMessage = onSocketEvent('new_message', (msg) => {
-      if (msg.match_id === matchId) {
+      // Use string comparison to handle potential type mismatches (number vs string)
+      if (String(msg.match_id) === String(matchId)) {
         mergeMessage(msg);
       }
     });
@@ -135,12 +136,19 @@ export default function ChatPage() {
       }
     });
 
+    // ── POLLING FALLBACK: Refresh messages every 30 seconds ──
+    // Safety net only — Socket.IO handles real-time delivery
+    const pollInterval = setInterval(() => {
+      loadMessages(true); // silent refresh, no loading spinner
+    }, 30000);
+
     return () => {
       leaveMatch(matchId);
       unsubMessage();
       unsubTyping();
       unsubStopTyping();
       unsubConnection();
+      clearInterval(pollInterval);
       clearTimeout(typingTimeoutRef.current);
       clearTimeout(partnerTypingTimeoutRef.current);
       sendStopTyping(matchId);

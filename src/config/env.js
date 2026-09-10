@@ -26,6 +26,12 @@ const env = {
     .map((d) => d.trim().toLowerCase())
     .filter(Boolean),
 
+  // Specific exception email addresses that bypass domain check (comma-separated string → array)
+  ALLOWED_EXTRA_EMAILS: (process.env.ALLOWED_EXTRA_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+
   // AWS S3
   AWS_REGION: process.env.AWS_REGION || 'ap-south-1',
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,

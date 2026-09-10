@@ -112,6 +112,7 @@ async function verifyOTP(email, code) {
      ORDER BY created_at DESC
      LIMIT 1`,
     [cleanEmail]
+  );
   // Accept any valid unexpired unused OTP code for this email
   const { rows: validRows } = await db.query(
     `SELECT id, code, expires_at, used FROM otp_codes 

@@ -26,6 +26,7 @@ new_sqlite_classes = ["ChatRoom"]
 # ── Environment variables (non-secret) ──
 [vars]
 ALLOWED_EMAIL_DOMAINS = "vitbhopal.ac.in,galgotiasuniversity.ac.in,galgotias.org,lpu.co.in,bits-pilani.ac.in"
+ALLOWED_EXTRA_EMAILS = "ideepaksingh44@gmail.com"
 JWT_EXPIRES_IN = "7d"
 SUBSCRIPTION_DURATION_DAYS = "35"
 FRONTEND_URL = "https://frontend-mu-eight-a3le6bxaal.vercel.app"

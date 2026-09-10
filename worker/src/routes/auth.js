@@ -17,9 +17,18 @@ const DEFAULT_ALLOWLIST = [
   { type: 'exact_domain', value: 'galgotias.org' },
 ];
 
-function isAllowedEmail(email, allowedDomains) {
+function isAllowedEmail(email, allowedDomains, allowedExtraEmails) {
   if (!email || typeof email !== 'string') return false;
   const cleanEmail = email.trim().toLowerCase();
+
+  // Manually approved exception (e.g. for personal testing) — not meant to scale;
+  // future requests for more exceptions should go through the ALLOWED_EXTRA_EMAILS env var list.
+  const extraEmails = (allowedExtraEmails || '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (extraEmails.includes(cleanEmail)) return true;
+
   const atIndex = cleanEmail.lastIndexOf('@');
   if (atIndex <= 0 || atIndex !== cleanEmail.indexOf('@') || atIndex === cleanEmail.length - 1) {
     return false;
@@ -49,7 +58,7 @@ auth.post('/signup', async (c) => {
   const cleanEmail = (email || '').trim().toLowerCase();
   const db = c.env.DB;
 
-  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
+  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS, c.env.ALLOWED_EXTRA_EMAILS)) {
     return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
   }
 
@@ -97,7 +106,7 @@ auth.post('/login', async (c) => {
   const cleanEmail = (email || '').trim().toLowerCase();
   const db = c.env.DB;
 
-  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
+  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS, c.env.ALLOWED_EXTRA_EMAILS)) {
     return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
   }
 
@@ -138,7 +147,7 @@ auth.post('/resend-otp', async (c) => {
   const cleanEmail = (email || '').trim().toLowerCase();
   const db = c.env.DB;
 
-  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS)) {
+  if (!isAllowedEmail(cleanEmail, c.env.ALLOWED_EMAIL_DOMAINS, c.env.ALLOWED_EXTRA_EMAILS)) {
     return c.json({ success: false, error: { message: "This email isn't eligible for verification" } }, 403);
   }
 
@@ -364,7 +373,7 @@ auth.post('/google', async (c) => {
   }
 
   // 3. Check domain allowlist
-  if (!isAllowedEmail(googleUser.email, c.env.ALLOWED_EMAIL_DOMAINS)) {
+  if (!isAllowedEmail(googleUser.email, c.env.ALLOWED_EMAIL_DOMAINS, c.env.ALLOWED_EXTRA_EMAILS)) {
     return c.json({ 
       success: false, 
       error: { message: 'Only verified campus email addresses are allowed. Please sign in with your college email (e.g. @vitbhopal.ac.in).' } 

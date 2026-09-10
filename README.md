@@ -1,3 +1,4 @@
+
 # CampusApp — Campus-Verified Dating Platform
 
 A dating/matching web app for a closed campus community, verified via college email domain. Built as an MVP for ~500–600 users.

@@ -183,4 +183,49 @@ describe('Email Verification Allowlist & isEmailAllowed', () => {
       }
     });
   });
+
+  describe('7. ALLOWED_EXTRA_EMAILS Exception Allowlist', () => {
+    const { isAllowedDomain } = require('../src/config/allowedDomains');
+
+    it('allows ideepaksingh44@gmail.com via ALLOWED_EXTRA_EMAILS env var', () => {
+      assert.equal(isEmailAllowed('ideepaksingh44@gmail.com'), true);
+      assert.equal(isAllowedDomain('ideepaksingh44@gmail.com'), true);
+    });
+
+    it('handles case-insensitivity for extra allowed email', () => {
+      assert.equal(isEmailAllowed('IDEEPAKSINGH44@GMAIL.COM'), true);
+      assert.equal(isEmailAllowed('IDeepakSingh44@Gmail.Com'), true);
+      assert.equal(isAllowedDomain('IDEEPAKSINGH44@GMAIL.COM'), true);
+    });
+
+    it('still rejects other non-allowed emails under the same provider (e.g. gmail.com)', () => {
+      assert.equal(isEmailAllowed('otherperson@gmail.com'), false);
+      assert.equal(isEmailAllowed('deepaksingh@gmail.com'), false);
+      assert.equal(isEmailAllowed('ideepak@gmail.com'), false);
+      assert.equal(isAllowedDomain('otherperson@gmail.com'), false);
+    });
+
+    it('allows custom extraEmails parameter and supports comma-separated list', () => {
+      assert.equal(isEmailAllowed('test.dev@gmail.com', undefined, 'test.dev@gmail.com, another@yahoo.com'), true);
+      assert.equal(isEmailAllowed('another@yahoo.com', undefined, 'test.dev@gmail.com, another@yahoo.com'), true);
+      assert.equal(isEmailAllowed('unlisted@gmail.com', undefined, 'test.dev@gmail.com, another@yahoo.com'), false);
+    });
+
+    it('signupSchema accepts ideepaksingh44@gmail.com and rejects other generic emails', () => {
+      const allowedResult = signupSchema.safeParse({ email: 'ideepaksingh44@gmail.com' });
+      assert.equal(allowedResult.success, true);
+      assert.equal(allowedResult.data.email, 'ideepaksingh44@gmail.com');
+
+      const rejectedResult = signupSchema.safeParse({ email: 'otherperson@gmail.com' });
+      assert.equal(rejectedResult.success, false);
+    });
+
+    it('preserves existing college domain verification behavior untouched', () => {
+      assert.equal(isEmailAllowed('student@vitbhopal.ac.in'), true);
+      assert.equal(isEmailAllowed('international@lnctu.ac.in'), true);
+      assert.equal(isEmailAllowed('student@lpu.co.in'), true);
+      assert.equal(isEmailAllowed('student@pilani.bits-pilani.ac.in'), true);
+      assert.equal(isEmailAllowed('student@randomcollege.edu'), false);
+    });
+  });
 });

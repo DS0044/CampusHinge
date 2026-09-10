@@ -15,14 +15,33 @@ const ALLOWLIST = [
  *
  * @param {string} email
  * @param {Array<{ type: string, value: string }>} [list=ALLOWLIST]
+ * @param {string[]|string|null} [extraEmails=null]
  * @returns {boolean}
  */
-function isEmailAllowed(email, list = ALLOWLIST) {
+function isEmailAllowed(email, list = ALLOWLIST, extraEmails = null) {
   if (!email || typeof email !== 'string') {
     return false;
   }
 
   const cleanEmail = email.trim().toLowerCase();
+
+  // Manually approved exception (e.g. for personal testing) — not meant to scale;
+  // future requests for more exceptions should go through the ALLOWED_EXTRA_EMAILS env var list.
+  const allowedExtra = extraEmails !== null
+    ? (Array.isArray(extraEmails)
+        ? extraEmails.map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : '')).filter(Boolean)
+        : String(extraEmails).split(',').map((e) => e.trim().toLowerCase()).filter(Boolean))
+    : (process.env.ALLOWED_EXTRA_EMAILS || '')
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+
+  // 3a. If the email exactly matches an entry in ALLOWED_EXTRA_EMAILS -> allow
+  if (allowedExtra.includes(cleanEmail)) {
+    return true;
+  }
+
+  // 3b. Else if the email's domain matches one of the existing allowed college domains -> allow
   const atIndex = cleanEmail.lastIndexOf('@');
   if (atIndex <= 0 || atIndex !== cleanEmail.indexOf('@') || atIndex === cleanEmail.length - 1) {
     return false;
@@ -58,6 +77,7 @@ function isEmailAllowed(email, list = ALLOWLIST) {
     }
   }
 
+  // 3c. Else -> reject
   return false;
 }
 
