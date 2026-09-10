@@ -74,11 +74,8 @@ async function request(method, path, body = null) {
         localStorage.clear();
         sessionStorage.clear();
       } catch (e) {}
-      if (
-        window.location.pathname !== '/login' &&
-        window.location.pathname !== '/signup' &&
-        window.location.pathname !== '/verify-otp'
-      ) {
+      const publicPaths = ['/login', '/signup', '/verify-otp', '/terms', '/privacy'];
+      if (!publicPaths.includes(window.location.pathname)) {
         window.location.replace('/login');
       }
     }

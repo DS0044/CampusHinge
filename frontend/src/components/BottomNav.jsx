@@ -9,9 +9,11 @@ export default function BottomNav() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const currentPath = location.pathname;
+  const isPublicPage = ['/signup', '/login', '/verify-otp', '/', '/terms', '/privacy'].includes(currentPath);
 
   useEffect(() => {
-    if (['/signup', '/login', '/verify-otp', '/'].includes(currentPath)) return;
+    const token = localStorage.getItem('token');
+    if (isPublicPage || !token) return;
     
     // Initial fetch via HTTP (once)
     fetchUnread();
@@ -35,7 +37,7 @@ export default function BottomNav() {
       unsubNotification();
       clearInterval(interval);
     };
-  }, [currentPath]);
+  }, [currentPath, isPublicPage]);
 
   async function fetchUnread() {
     try {
@@ -46,8 +48,8 @@ export default function BottomNav() {
     }
   }
 
-  // Don't show navigation on auth/login/signup pages or inside individual chat
-  if (['/signup', '/login', '/verify-otp', '/'].includes(currentPath) || currentPath.startsWith('/chat')) {
+  // Don't show navigation on auth/login/signup/legal pages or inside individual chat
+  if (isPublicPage || currentPath.startsWith('/chat')) {
     return null;
   }
 
