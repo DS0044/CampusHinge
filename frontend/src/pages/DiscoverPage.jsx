@@ -390,16 +390,141 @@ export default function DiscoverPage() {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.8rem', margin: 0 }}>Discover</h1>
-        <button
+      {/* Top Professional Header with Center Brand Logo */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          maxWidth: '440px',
+          margin: '0 auto 1rem auto',
+          padding: '0.2rem 0',
+          position: 'relative',
+        }}
+      >
+        {/* Left spacer for symmetric centering */}
+        <div style={{ width: '42px', display: 'flex', justifyContent: 'flex-start' }} />
+
+        {/* Top Middle Logo — Professional Presentation */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
           onClick={loadDeckAndProfile}
-          className="btn-secondary"
-          disabled={refreshing}
-          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+          title="CampusHinge — Tap to refresh deck"
         >
-          {refreshing ? '↻ Refreshing…' : '↻ Refresh'}
-        </button>
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* Subtle brand glow behind logo */}
+            <div
+              style={{
+                position: 'absolute',
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(255, 64, 129, 0.45) 0%, rgba(255, 112, 67, 0.2) 60%, transparent 80%)',
+                filter: 'blur(12px)',
+                zIndex: 0,
+                pointerEvents: 'none',
+              }}
+            />
+            <img
+              src="/campushinge-logo.jpg"
+              alt="CampusHinge"
+              style={{
+                height: '56px',
+                width: '56px',
+                borderRadius: '16px',
+                objectFit: 'cover',
+                position: 'relative',
+                zIndex: 1,
+                border: '1.5px solid rgba(255, 64, 129, 0.35)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 64, 129, 0.25)',
+                transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.06)';
+                e.currentTarget.style.boxShadow = '0 6px 24px rgba(255, 64, 129, 0.45), 0 0 32px rgba(255, 112, 67, 0.35)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 64, 129, 0.25)';
+              }}
+            />
+          </div>
+          <span
+            style={{
+              marginTop: '0.35rem',
+              fontSize: '0.98rem',
+              fontWeight: 800,
+              letterSpacing: '0.02em',
+              background: 'linear-gradient(135deg, #ff4081 0%, #ff6e40 50%, #ffa726 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: '0 2px 10px rgba(255, 64, 129, 0.2)',
+            }}
+          >
+            CampusHinge
+          </span>
+        </div>
+
+        {/* Right refresh button */}
+        <div style={{ width: '42px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={loadDeckAndProfile}
+            disabled={refreshing}
+            title="Refresh deck"
+            aria-label="Refresh deck"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: refreshing ? 'default' : 'pointer',
+              fontSize: '1.2rem',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!refreshing) {
+                e.currentTarget.style.borderColor = 'var(--primary-pink)';
+                e.currentTarget.style.color = '#fff';
+                e.currentTarget.style.boxShadow = '0 0 12px var(--accent-glow)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--glass-border)';
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                transform: refreshing ? 'rotate(360deg)' : 'none',
+                transition: 'transform 0.6s ease',
+              }}
+            >
+              ↻
+            </span>
+          </button>
+        </div>
       </div>
 
       {swipeMsg && <p className="success" style={{ marginBottom: '1rem', textAlign: 'center' }}>{swipeMsg}</p>}
