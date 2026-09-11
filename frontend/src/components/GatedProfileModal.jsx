@@ -297,7 +297,7 @@ export default function GatedProfileModal({ targetUserId, onClose, onMatchCreate
                 {profile.year && (
                   <div>
                     <h4 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Graduation</h4>
-                    <p style={{ fontSize: '0.92rem', color: '#fff' }}>Class of '{String(profile.year).slice(-2)}</p>
+                    <p style={{ fontSize: '0.92rem', color: '#fff' }}>Passout {String(profile.year).slice(-2)}</p>
                   </div>
                 )}
 

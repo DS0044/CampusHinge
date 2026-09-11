@@ -12,6 +12,7 @@ export default function DiscoverPage() {
   const [myInterests, setMyInterests] = useState([]);
   const [topCardPhotoIndex, setTopCardPhotoIndex] = useState(0);
   const [detailProfile, setDetailProfile] = useState(null);
+  const [expandedBioProfileId, setExpandedBioProfileId] = useState(null);
 
   // Gesture drag & flying animation state
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -224,6 +225,8 @@ export default function DiscoverPage() {
 
   // Active top profile calculations
   const topProfile = deck[0];
+  const topProfileId = topProfile ? (topProfile.user_id || topProfile.id || 'p0') : null;
+  const isBioExpanded = expandedBioProfileId === topProfileId;
 
   let topPhotos = [];
   if (topProfile) {
@@ -248,6 +251,13 @@ export default function DiscoverPage() {
       }
     }
   }
+
+  const topBioText = (topProfile?.bio || '').trim();
+  const topBioWords = topBioText ? topBioText.split(/\s+/) : [];
+  const isTopBioLong = topBioWords.length > 10 || topBioText.length > 60;
+  const displayedTopBio = isTopBioLong && !isBioExpanded
+    ? topBioWords.slice(0, 10).join(' ')
+    : topBioText;
 
   const sharedInterests =
     topProfile?.shared_interests && topProfile.shared_interests.length > 0
@@ -597,7 +607,6 @@ export default function DiscoverPage() {
               <RenderDeckCard
                 profile={deck[2]}
                 depth={2}
-                myInterests={myInterests}
               />
             )}
 
@@ -606,7 +615,6 @@ export default function DiscoverPage() {
               <RenderDeckCard
                 profile={deck[1]}
                 depth={1}
-                myInterests={myInterests}
                 dynamicScale={0.95 + dragMagnitude}
               />
             )}
@@ -830,7 +838,7 @@ export default function DiscoverPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{topProfile.name || 'Campus Student'}</h2>
                       {topProfile.year && (
-                        <span className="swipe-card-badge">Class of '{String(topProfile.year).slice(-2)}</span>
+                        <span className="swipe-card-badge">Passout {String(topProfile.year).slice(-2)}</span>
                       )}
                       {typeof topProfile.compatibility_score === 'number' && topProfile.compatibility_score >= 70 && (
                         <span
@@ -863,65 +871,41 @@ export default function DiscoverPage() {
                     )}
                   </div>
 
-                  {topProfile.bio && (
-                    <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem', marginBottom: '0.5rem' }}>
-                      {topProfile.bio}
-                    </p>
-                  )}
-
-                  {/* Shared Interests Banner */}
-                  {sharedInterests.length > 0 && (
-                    <div
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%)',
-                        border: '1px solid rgba(244, 114, 182, 0.4)',
-                        backdropFilter: 'blur(10px)',
-                        padding: '0.4rem 0.75rem',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: '#fbcfe8',
-                        marginBottom: '0.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        boxShadow: '0 2px 8px rgba(236, 72, 153, 0.15)',
-                      }}
-                    >
-                      <span>✨</span>
-                      <span>
-                        You both like ({sharedInterests.length}):{' '}
-                        <strong style={{ color: '#fff' }}>{sharedInterests.join(', ')}</strong>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Interests Chips Grid */}
-                  {topInterests.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.2rem' }}>
-                      {topInterests.map((interest, idx) => {
-                        const isShared = sharedInterests.includes(interest);
-                        return (
-                          <span
-                            key={idx}
+                  {topBioText && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <p
+                        style={{
+                          color: 'rgba(255,255,255,0.9)',
+                          fontSize: '0.88rem',
+                          margin: 0,
+                          lineHeight: '1.45',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        <span>{displayedTopBio}</span>
+                        {isTopBioLong && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedBioProfileId(isBioExpanded ? null : topProfileId);
+                            }}
                             style={{
-                              background: isShared
-                                ? 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)'
-                                : 'rgba(255,255,255,0.15)',
-                              border: isShared ? '1px solid rgba(244, 114, 182, 0.6)' : '1px solid transparent',
-                              backdropFilter: 'blur(8px)',
-                              padding: '0.22rem 0.65rem',
-                              borderRadius: 'var(--radius-full)',
-                              fontSize: '0.75rem',
-                              fontWeight: isShared ? 600 : 400,
-                              color: '#fff',
-                              boxShadow: isShared ? '0 2px 6px rgba(236, 72, 153, 0.3)' : 'none',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--primary-pink, #ff4081)',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              padding: '0 0 0 0.35rem',
+                              fontSize: '0.85rem',
+                              display: 'inline',
+                              textDecoration: 'underline',
                             }}
                           >
-                            {isShared ? `✨ ${interest}` : interest}
-                          </span>
-                        );
-                      })}
+                            {isBioExpanded ? 'See less' : '... See more'}
+                          </button>
+                        )}
+                      </p>
                     </div>
                   )}
 
@@ -932,11 +916,11 @@ export default function DiscoverPage() {
                       setDetailProfile(topProfile);
                     }}
                     style={{
-                      marginTop: '0.6rem',
+                      marginTop: '0.4rem',
                       background: 'none',
                       border: 'none',
-                      color: 'rgba(255,255,255,0.8)',
-                      fontSize: '0.8rem',
+                      color: 'rgba(255,255,255,0.85)',
+                      fontSize: '0.82rem',
                       textDecoration: 'underline',
                       cursor: 'pointer',
                       padding: 0,
@@ -945,7 +929,7 @@ export default function DiscoverPage() {
                       gap: '0.3rem',
                     }}
                   >
-                    <span>🔍 Tap for full profile &amp; photos</span>
+                    <span>🔍 Tap for full profile, matching interests &amp; photos</span>
                   </button>
                 </div>
               </div>
@@ -1042,7 +1026,7 @@ export default function DiscoverPage() {
  * RenderDeckCard — Displays stacked cards underneath the active card
  * Provides visual depth and continuous deck perception
  */
-function RenderDeckCard({ profile, depth, myInterests = [], dynamicScale }) {
+function RenderDeckCard({ profile, depth, dynamicScale }) {
   let photos = [];
   if (Array.isArray(profile.photos)) photos = profile.photos;
   else if (typeof profile.photos === 'string') {
@@ -1052,21 +1036,6 @@ function RenderDeckCard({ profile, depth, myInterests = [], dynamicScale }) {
       photos = [];
     }
   }
-
-  let interests = [];
-  if (Array.isArray(profile.interests)) interests = profile.interests;
-  else if (typeof profile.interests === 'string') {
-    try {
-      interests = JSON.parse(profile.interests);
-    } catch {
-      interests = [];
-    }
-  }
-
-  const sharedInterests =
-    profile.shared_interests && profile.shared_interests.length > 0
-      ? profile.shared_interests
-      : interests.filter((tag) => myInterests.includes(tag));
 
   const customStyle =
     depth === 1 && dynamicScale
@@ -1104,38 +1073,20 @@ function RenderDeckCard({ profile, depth, myInterests = [], dynamicScale }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{profile.name || 'Campus Student'}</h2>
           {profile.year && (
-            <span className="swipe-card-badge">Class of '{String(profile.year).slice(-2)}</span>
+            <span className="swipe-card-badge">Passout {String(profile.year).slice(-2)}</span>
           )}
         </div>
 
         {profile.bio && (
           <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem', marginBottom: '0.5rem' }}>
-            {profile.bio}
+            {(() => {
+              const bText = profile.bio.trim();
+              const bWords = bText.split(/\s+/);
+              return bWords.length > 10 || bText.length > 60
+                ? bWords.slice(0, 10).join(' ') + '...'
+                : bText;
+            })()}
           </p>
-        )}
-
-        {sharedInterests.length > 0 && (
-          <div
-            style={{
-              background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%)',
-              border: '1px solid rgba(244, 114, 182, 0.4)',
-              backdropFilter: 'blur(10px)',
-              padding: '0.4rem 0.75rem',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              color: '#fbcfe8',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-            }}
-          >
-            <span>✨</span>
-            <span>
-              You both like ({sharedInterests.length}):{' '}
-              <strong style={{ color: '#fff' }}>{sharedInterests.join(', ')}</strong>
-            </span>
-          </div>
         )}
       </div>
     </div>

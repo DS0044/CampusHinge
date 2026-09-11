@@ -33,7 +33,6 @@ export default function DiscoverProfileModal({
   // Calculate shared interests
   const userInterests = Array.isArray(myInterests) ? myInterests : [];
   const sharedInterests = candidateInterests.filter((tag) => userInterests.includes(tag));
-  const nonSharedInterests = candidateInterests.filter((tag) => !userInterests.includes(tag));
 
   const totalPhotos = photosList.length;
 
@@ -279,7 +278,7 @@ export default function DiscoverProfileModal({
                     color: '#fff',
                   }}
                 >
-                  Class of '{String(profile.year).slice(-2)}
+                  Passout {String(profile.year).slice(-2)}
                 </span>
               )}
             </div>
@@ -324,10 +323,10 @@ export default function DiscoverProfileModal({
                   marginBottom: '0.6rem',
                 }}
               >
-                Interests
+                Interests &amp; Chemistry
               </h4>
 
-              {/* Shared Interests Banner (Only if sharedInterests > 0) */}
+              {/* Matching Interests Banner */}
               {sharedInterests.length > 0 && (
                 <div
                   style={{
@@ -335,7 +334,7 @@ export default function DiscoverProfileModal({
                     border: '1px solid rgba(244, 114, 182, 0.4)',
                     borderRadius: 'var(--radius-md)',
                     padding: '0.75rem 1rem',
-                    marginBottom: '0.8rem',
+                    marginBottom: '0.9rem',
                   }}
                 >
                   <div
@@ -349,7 +348,7 @@ export default function DiscoverProfileModal({
                       gap: '0.35rem',
                     }}
                   >
-                    <span>✨</span> You both like ({sharedInterests.length})
+                    <span>✨</span> Matching Interests ({sharedInterests.length})
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                     {sharedInterests.map((tag, idx) => (
@@ -371,40 +370,46 @@ export default function DiscoverProfileModal({
                       >
                         <span>✨</span>
                         <span>{tag}</span>
-                        <span style={{ opacity: 0.85, fontSize: '0.7rem' }}>(in common)</span>
+                        <span style={{ opacity: 0.85, fontSize: '0.7rem' }}>(match)</span>
                       </span>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Other Candidate Interests */}
-              {nonSharedInterests.length > 0 && (
-                <div>
-                  {sharedInterests.length > 0 && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-                      Other interests:
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {nonSharedInterests.map((tag, idx) => (
+              {/* All Interests */}
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
+                  All Interests ({candidateInterests.length}):
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {candidateInterests.map((tag, idx) => {
+                    const isMatch = sharedInterests.includes(tag);
+                    return (
                       <span
                         key={idx}
                         style={{
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          color: 'rgba(255, 255, 255, 0.85)',
-                          padding: '0.25rem 0.65rem',
+                          background: isMatch
+                            ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%)'
+                            : 'rgba(255, 255, 255, 0.08)',
+                          border: isMatch ? '1px solid rgba(244, 114, 182, 0.5)' : '1px solid var(--glass-border)',
+                          color: isMatch ? '#fbcfe8' : 'rgba(255, 255, 255, 0.88)',
+                          padding: '0.3rem 0.7rem',
                           borderRadius: 'var(--radius-full)',
                           fontSize: '0.78rem',
+                          fontWeight: isMatch ? 600 : 400,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
                         }}
                       >
-                        {tag}
+                        {isMatch && <span style={{ fontSize: '0.75rem' }}>✨</span>}
+                        <span>{tag}</span>
                       </span>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
           )}
 
