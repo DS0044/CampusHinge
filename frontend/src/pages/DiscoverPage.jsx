@@ -49,7 +49,7 @@ export default function DiscoverPage() {
     return () => clearInterval(interval);
   }, [superLikeStatus.available, superLikeStatus.next_available_in_seconds]);
 
-  // Buffer preloading: when remaining cards drop to <= 3, fetch more in the background
+  // Buffer preloading & queue cycling: when remaining cards drop to <= 3, fetch more in the background
   useEffect(() => {
     if (deck.length > 3 || isFetchingMoreRef.current || !hasMoreRef.current || loading) return;
 
@@ -62,10 +62,12 @@ export default function DiscoverPage() {
           hasMoreRef.current = false;
         } else {
           setDeck((prevDeck) => {
+            if (prevDeck.length === 0) {
+              return incoming;
+            }
             const currentIds = new Set(prevDeck.map((p) => p.user_id || p.id));
             const fresh = incoming.filter((p) => !currentIds.has(p.user_id || p.id));
             if (fresh.length === 0) {
-              hasMoreRef.current = false;
               return prevDeck;
             }
             return [...prevDeck, ...fresh];
@@ -215,7 +217,13 @@ export default function DiscoverPage() {
 
       // Settle animation and advance to next card
       setTimeout(() => {
-        setDeck((prev) => prev.slice(1));
+        setDeck((prev) => {
+          const nextDeck = prev.slice(1);
+          if (nextDeck.length === 0) {
+            hasMoreRef.current = true;
+          }
+          return nextDeck;
+        });
         setFlyingCard(null);
         setTopCardPhotoIndex(0);
       }, 260);

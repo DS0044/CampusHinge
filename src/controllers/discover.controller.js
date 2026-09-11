@@ -75,15 +75,25 @@ async function getDiscoverDeck(req, res, next) {
 
     let { rows: candidates } = await db.query(
       `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender,
-              p.interested_in, p.interests, p.branch
+              p.interested_in, p.interests, p.branch,
+              CASE
+                WHEN p.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = $1) THEN 0
+                ELSE 1
+              END AS is_looped
        FROM profiles p
        JOIN users u ON u.id = p.user_id
        WHERE p.user_id != $1
          AND u.is_banned = 0
          AND u.email_verified = 1
-         -- Exclude already swiped
+         -- Exclude already liked (likes and super_likes are permanent)
          AND p.user_id NOT IN (
-           SELECT swiped_id FROM swipes WHERE swiper_id = $1
+           SELECT swiped_id FROM swipes WHERE swiper_id = $1 AND action IN ('like', 'super_like')
+         )
+         -- Exclude matched profiles (mutual likes)
+         AND p.user_id NOT IN (
+           SELECT user2_id FROM matches WHERE user1_id = $1
+           UNION
+           SELECT user1_id FROM matches WHERE user2_id = $1
          )
          -- Exclude blocked (in either direction)
          AND p.user_id NOT IN (
@@ -92,7 +102,7 @@ async function getDiscoverDeck(req, res, next) {
            SELECT blocker_id FROM blocks WHERE blocked_id = $1
          )
          ${genderFilter}
-       ORDER BY RANDOM()
+       ORDER BY is_looped ASC, RANDOM()
        LIMIT $${poolParamIdx}`,
       params
     );
@@ -131,12 +141,18 @@ async function getDiscoverDeck(req, res, next) {
           shared_interests_count: sharedInterests.length,
           compatibility_score: score,
           compatibility_breakdown: breakdown,
+          is_looped: candidate.is_looped || 0,
         };
       })
     );
 
-    // 5. Sort by compatibility score (highest first) and take top `limit`
-    scoredProfiles.sort((a, b) => b.compatibility_score - a.compatibility_score);
+    // 5. Sort unswiped candidates first, then by compatibility score
+    scoredProfiles.sort((a, b) => {
+      if (a.is_looped !== b.is_looped) {
+        return a.is_looped - b.is_looped;
+      }
+      return b.compatibility_score - a.compatibility_score;
+    });
     const topProfiles = scoredProfiles.slice(0, limit);
 
     // 6. Refresh tag popularity in background (non-blocking)

@@ -47,18 +47,32 @@ discover.get('/', async (c) => {
   const poolSize = Math.min(limit * 5, 100);
   params.push(poolSize);
 
-  // 3. Fetch candidate pool (unswiped first)
+  // 3. Fetch candidate pool (unswiped first, looped passed candidates next)
   let { rows: candidates } = await query(db,
-    `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender, p.interested_in, p.interests, p.branch
+    `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender, p.interested_in, p.interests, p.branch,
+            CASE
+              WHEN p.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = $1) THEN 0
+              ELSE 1
+            END AS is_looped
      FROM profiles p JOIN users u ON u.id = p.user_id
      WHERE p.user_id != $1 AND u.is_banned = 0 AND u.email_verified = 1
-       AND p.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = $1)
+       -- Exclude already liked (likes and super_likes are permanent)
+       AND p.user_id NOT IN (
+         SELECT swiped_id FROM swipes WHERE swiper_id = $1 AND action IN ('like', 'super_like')
+       )
+       -- Exclude matched profiles (mutual likes)
+       AND p.user_id NOT IN (
+         SELECT user2_id FROM matches WHERE user1_id = $1
+         UNION
+         SELECT user1_id FROM matches WHERE user2_id = $1
+       )
+       -- Exclude blocked (in either direction)
        AND p.user_id NOT IN (
          SELECT blocked_id FROM blocks WHERE blocker_id = $1
          UNION SELECT blocker_id FROM blocks WHERE blocked_id = $1
        )
        ${genderFilter}
-     ORDER BY RANDOM() LIMIT $${pi}`,
+     ORDER BY is_looped ASC, RANDOM() LIMIT $${pi}`,
     params
   );
 
@@ -81,11 +95,18 @@ discover.get('/', async (c) => {
         shared_count: sharedInterests.length,
         shared_interests_count: sharedInterests.length,
         compatibility_score: score, compatibility_breakdown: breakdown,
+        is_looped: candidate.is_looped || 0,
       };
     })
   );
 
-  scoredProfiles.sort((a, b) => b.compatibility_score - a.compatibility_score);
+  // Sort unswiped candidates first, then by compatibility score
+  scoredProfiles.sort((a, b) => {
+    if (a.is_looped !== b.is_looped) {
+      return a.is_looped - b.is_looped;
+    }
+    return b.compatibility_score - a.compatibility_score;
+  });
   const topProfiles = scoredProfiles.slice(0, limit);
 
   // Background: refresh tag popularity
