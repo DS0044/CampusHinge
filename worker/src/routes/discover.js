@@ -62,28 +62,6 @@ discover.get('/', async (c) => {
     params
   );
 
-  // If no new unswiped candidates exist, recycle passed candidates (excluding active likes, super likes, and matches)
-  if (candidates.length === 0) {
-    const { rows: recycled } = await query(db,
-      `SELECT p.user_id, p.name, p.bio, p.photos, p.year, p.gender, p.interested_in, p.interests, p.branch
-       FROM profiles p JOIN users u ON u.id = p.user_id
-       WHERE p.user_id != $1 AND u.is_banned = 0 AND u.email_verified = 1
-         AND p.user_id NOT IN (SELECT swiped_id FROM swipes WHERE swiper_id = $1 AND action IN ('like', 'super_like'))
-         AND p.user_id NOT IN (
-           SELECT user2_id FROM matches WHERE user1_id = $1
-           UNION SELECT user1_id FROM matches WHERE user2_id = $1
-         )
-         AND p.user_id NOT IN (
-           SELECT blocked_id FROM blocks WHERE blocker_id = $1
-           UNION SELECT blocker_id FROM blocks WHERE blocked_id = $1
-         )
-         ${genderFilter}
-       ORDER BY RANDOM() LIMIT $${pi}`,
-      params
-    );
-    candidates = recycled;
-  }
-
   // 4. Score each candidate
   const scoredProfiles = await Promise.all(
     candidates.map(async (candidate) => {

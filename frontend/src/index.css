@@ -363,18 +363,175 @@ button:disabled {
   position: relative;
 }
 
-.swipe-card {
+/* ── Hinge-Style Stacked Card Deck ── */
+.deck-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.deck-stack {
   position: relative;
   width: 100%;
   height: 520px;
+  perspective: 1000px;
+}
+
+.swipe-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
   border: 1px solid var(--glass-border);
   background: #111422;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
+}
+
+/* Card Depth Tiers in Deck */
+.swipe-card.card-depth-0 {
+  z-index: 30;
+  cursor: grab;
+}
+
+.swipe-card.card-depth-0:active {
+  cursor: grabbing;
+}
+
+.swipe-card.card-depth-1 {
+  z-index: 20;
+  transform: scale(0.95) translateY(12px);
+  opacity: 0.94;
+  pointer-events: none;
+  filter: brightness(0.92);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.28s ease, filter 0.28s ease;
+}
+
+.swipe-card.card-depth-2 {
+  z-index: 10;
+  transform: scale(0.90) translateY(24px);
+  opacity: 0.80;
+  pointer-events: none;
+  filter: brightness(0.85);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.28s ease, filter 0.28s ease;
+}
+
+/* Dynamic Swipe Stamps */
+.swipe-stamp {
+  position: absolute;
+  top: 36px;
+  padding: 0.35rem 0.9rem;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1.45rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  z-index: 45;
+  pointer-events: none;
+  border-width: 3.5px;
+  border-style: solid;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.swipe-stamp-like {
+  right: 22px;
+  color: #00e676;
+  border-color: #00e676;
+  transform: rotate(14deg);
+  background: rgba(0, 230, 118, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+}
+
+.swipe-stamp-pass {
+  left: 22px;
+  color: #ff4b4b;
+  border-color: #ff4b4b;
+  transform: rotate(-14deg);
+  background: rgba(255, 75, 75, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: 0 0 10px rgba(255, 75, 75, 0.5);
+}
+
+.swipe-stamp-super {
+  top: 45px;
+  left: 50%;
+  transform: translateX(-50%) rotate(0deg);
+  color: #ffd700;
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+
+/* Empty State Radar Beacon */
+.empty-state-beacon {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-beacon .beacon-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.05) 70%, transparent 100%);
+  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  animation: beaconWave 2.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.empty-state-beacon .beacon-pulse:nth-child(2) {
+  animation-delay: 0.9s;
+}
+
+.empty-state-beacon .beacon-pulse:nth-child(3) {
+  animation-delay: 1.8s;
+}
+
+.empty-state-beacon .beacon-core {
+  position: relative;
+  z-index: 2;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 0 30px var(--accent-glow);
+}
+
+@keyframes beaconWave {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 
 .swipe-card-img {
