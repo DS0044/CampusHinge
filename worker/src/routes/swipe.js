@@ -6,7 +6,7 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { updateSwipePreferences } from '../services/scoring.js';
 
-import { sendSuperLikeEmail } from '../services/email.js';
+import { sendSuperLikeEmail, sendLikeEmail } from '../services/email.js';
 
 const swipe = new Hono();
 swipe.use('/*', authenticate());
@@ -196,16 +196,31 @@ swipe.post('/', async (c) => {
         );
       }
     } else {
-      // Anti-spam notification: only notify if an unread/existing 'like' or 'super_like' notification doesn't already exist
+      // Create or update in-app like notification
       const { rows: existingNotif } = await query(db,
-        `SELECT id FROM notifications WHERE to_user_id = $1 AND from_user_id = $2 AND type IN ('like', 'super_like')`,
+        `SELECT id FROM notifications WHERE to_user_id = $1 AND from_user_id = $2`,
         [swiped_id, swiperId]
       );
 
-      if (existingNotif.length === 0) {
+      if (existingNotif.length > 0) {
+        await query(db,
+          `UPDATE notifications SET type = 'like', is_read = 0, is_seen = 0, created_at = datetime('now') WHERE id = $1`,
+          [existingNotif[0].id]
+        );
+      } else {
         const notifId = crypto.randomUUID();
-        query(db, `INSERT INTO notifications (id, to_user_id, from_user_id, type, created_at) VALUES ($1, $2, $3, 'like', datetime('now'))`,
-          [notifId, swiped_id, swiperId]).catch(() => {});
+        await query(db,
+          `INSERT INTO notifications (id, to_user_id, from_user_id, type, created_at) VALUES ($1, $2, $3, 'like', datetime('now'))`,
+          [notifId, swiped_id, swiperId]
+        );
+      }
+
+      // Send transactional email if recipient opted in (email_notifications !== 0)
+      const recipient = targetUser[0];
+      if (recipient?.email && recipient.email_notifications !== 0) {
+        c.executionCtx.waitUntil(
+          sendLikeEmail(c.env, recipient.email).catch(e => console.error('Like email error:', e))
+        );
       }
     }
   }

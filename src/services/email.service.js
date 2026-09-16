@@ -114,4 +114,4 @@ async function sendOTPEmail(to, otp) {
   }
 }
 
-module.exports = { sendOTPEmail };
+module.exports = { sendOTPEmail, getTransporter };

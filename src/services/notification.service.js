@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { sendOTPEmail } = require('./email.service');
+const { getTransporter } = require('./email.service');
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 
@@ -62,7 +62,8 @@ async function sendLikeDigestEmail(toEmail, count = 1) {
   console.log(`📧  [NOTIF EMAIL] Preparing like notification email to ${toEmail}…`);
 
   const subject = count > 1 ? `You have ${count} new likes on CampusHinge 👀` : 'Someone likes your profile 👀';
-  const ctaUrl = 'http://localhost:5173/notifications';
+  const baseUrl = process.env.FRONTEND_URL || 'https://frontend-mu-eight-a3le6bxaal.vercel.app';
+  const ctaUrl = `${baseUrl.replace(/\/$/, '')}/notifications`;
 
   const html = `
     <div style="font-family: 'Outfit', 'Inter', -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 28px; background: #090a10; color: #f8fafc; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
@@ -70,7 +71,7 @@ async function sendLikeDigestEmail(toEmail, count = 1) {
         CampusHinge
       </h2>
       <p style="color: #f8fafc; font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-        A fellow VIT Bhopal student liked your profile! Open the app to see who likes you and match back.
+        A fellow student liked your profile! Open the app to see who likes you and match back.
       </p>
       <div style="text-align: center; margin: 28px 0;">
         <a href="${ctaUrl}" style="background: linear-gradient(135deg, #ff4081 0%, #ff6b6b 100%); color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 4px 15px rgba(255,64,129,0.3);">
@@ -83,17 +84,13 @@ async function sendLikeDigestEmail(toEmail, count = 1) {
     </div>
   `;
 
-  if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_USER !== 'your_email@gmail.com') {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_PORT === 465,
-        auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      });
+  const transporter = getTransporter();
+  const fromUser = process.env.SMTP_USER || env.SMTP_USER || 'noreply@campushinge.com';
 
+  if (transporter) {
+    try {
       await transporter.sendMail({
-        from: `"CampusHinge" <${env.SMTP_USER}>`,
+        from: `"CampusHinge" <${fromUser}>`,
         to: toEmail,
         subject,
         html,
@@ -213,7 +210,8 @@ async function sendSuperLikeEmail(toEmail, senderName, sharedInterests = []) {
   const count = sharedInterests.length;
 
   const subject = 'You got a Super Like on CampusHinge ⭐';
-  const ctaUrl = 'http://localhost:5173/notifications';
+  const baseUrl = process.env.FRONTEND_URL || 'https://frontend-mu-eight-a3le6bxaal.vercel.app';
+  const ctaUrl = `${baseUrl.replace(/\/$/, '')}/notifications`;
 
   const bodyText = `${senderName} Super Liked your profile — you both share ${count} interests${interestsText}. Open CampusHinge to see their profile and like back to start chatting.`;
 
@@ -245,17 +243,13 @@ async function sendSuperLikeEmail(toEmail, senderName, sharedInterests = []) {
     </div>
   `;
 
-  if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_USER !== 'your_email@gmail.com') {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_PORT === 465,
-        auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      });
+  const transporter = getTransporter();
+  const fromUser = process.env.SMTP_USER || env.SMTP_USER || 'noreply@campushinge.com';
 
+  if (transporter) {
+    try {
       await transporter.sendMail({
-        from: `"CampusHinge" <${env.SMTP_USER}>`,
+        from: `"CampusHinge" <${fromUser}>`,
         to: toEmail,
         subject,
         text: bodyText,

@@ -207,18 +207,10 @@ async function recordSwipe(req, res, next) {
           console.error('Super Like notification error:', err.message)
         );
       } else {
-        // Anti-spam notification: only create notification if one does not already exist
-        const { rows: existingNotif } = await db.query(
-          `SELECT id FROM notifications WHERE to_user_id = $1 AND from_user_id = $2 AND type IN ('like', 'super_like')`,
-          [swiped_id, swiperId]
+        const { createLikeNotification } = require('../services/notification.service');
+        createLikeNotification(swiperId, swiped_id).catch((err) =>
+          console.error('Notification error:', err.message)
         );
-
-        if (existingNotif.length === 0) {
-          const { createLikeNotification } = require('../services/notification.service');
-          createLikeNotification(swiperId, swiped_id).catch((err) =>
-            console.error('Notification error:', err.message)
-          );
-        }
       }
     }
 
