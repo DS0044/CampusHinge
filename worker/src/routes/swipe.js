@@ -190,10 +190,19 @@ swipe.post('/', async (c) => {
 
       // Send transactional email if recipient opted in
       const recipient = targetUser[0];
-      if (recipient?.email && recipient.email_notifications !== 0) {
-        c.executionCtx.waitUntil(
-          sendSuperLikeEmail(c.env, recipient.email, senderName, sharedInterests).catch(e => console.error('Super Like email error:', e))
-        );
+      const shouldNotifySuperLike = recipient?.email &&
+        recipient.email_notifications !== 0 &&
+        recipient.email_notifications !== '0' &&
+        recipient.email_notifications !== false;
+
+      if (shouldNotifySuperLike) {
+        console.log(`📨 Triggering Super Like notification email for ${recipient.email}`);
+        const p = sendSuperLikeEmail(c.env, recipient.email, senderName, sharedInterests)
+          .then(() => console.log(`✅ Super Like email sent to ${recipient.email}`))
+          .catch(e => console.error('❌ Super Like email error:', e));
+        if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') {
+          c.executionCtx.waitUntil(p);
+        }
       }
     } else {
       // Create or update in-app like notification
@@ -215,12 +224,21 @@ swipe.post('/', async (c) => {
         );
       }
 
-      // Send transactional email if recipient opted in (email_notifications !== 0)
+      // Send transactional email if recipient opted in
       const recipient = targetUser[0];
-      if (recipient?.email && recipient.email_notifications !== 0) {
-        c.executionCtx.waitUntil(
-          sendLikeEmail(c.env, recipient.email).catch(e => console.error('Like email error:', e))
-        );
+      const shouldNotifyLike = recipient?.email &&
+        recipient.email_notifications !== 0 &&
+        recipient.email_notifications !== '0' &&
+        recipient.email_notifications !== false;
+
+      if (shouldNotifyLike) {
+        console.log(`📨 Triggering Like notification email for ${recipient.email}`);
+        const p = sendLikeEmail(c.env, recipient.email)
+          .then(() => console.log(`✅ Like email sent to ${recipient.email}`))
+          .catch(e => console.error('❌ Like email error:', e));
+        if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') {
+          c.executionCtx.waitUntil(p);
+        }
       }
     }
   }

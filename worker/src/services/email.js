@@ -83,37 +83,78 @@ async function sendViaAvailableProviders(env, { to, subject, html, text, logName
 
   // ─── 3. Try worker-mailer SMTP (TCP socket support in CF Workers) ───
   if (env.SMTP_PASS && env.SMTP_PASS !== 'your_app_password') {
+    const cleanPass = (env.SMTP_PASS || '').trim().replace(/\s+/g, '');
+    const cleanUser = (fromEmail || '').trim();
+    const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
+
+    // Strategy A: Port 465 (Direct SSL/TLS) — standard and most reliable in Cloudflare Workers
     try {
       const { WorkerMailer } = await import('worker-mailer');
-      const smtpHost = env.SMTP_HOST || 'smtp.gmail.com';
-      const smtpPort = parseInt(env.SMTP_PORT || '587', 10);
-
-      console.log(`📧 [${logName}] Sending to ${to} via SMTP ${smtpHost}:${smtpPort}…`);
+      console.log(`📧 [${logName}] Trying SMTP on ${smtpHost}:465 (Direct SSL/TLS) for ${to}…`);
 
       const mailer = await WorkerMailer.connect({
         credentials: {
-          username: fromEmail,
-          password: env.SMTP_PASS,
+          username: cleanUser,
+          password: cleanPass,
         },
-        authType: 'plain',
+        authType: ['login', 'plain'],
         host: smtpHost,
-        port: smtpPort,
+        port: 465,
         secure: true,
+        startTls: false,
+        socketTimeoutMs: 15000,
+        responseTimeoutMs: 15000,
       });
 
       await mailer.send({
-        from: { name: fromName, email: fromEmail },
+        from: { name: fromName, email: cleanUser },
         to: { email: to },
         subject,
         text,
         html,
       });
 
-      console.log(`✅ [${logName}] Sent via SMTP to ${to}`);
+      console.log(`✅ [${logName}] Sent successfully via SMTP (port 465) to ${to}`);
+      mailer.close().catch(() => {});
       return;
-    } catch (err) {
-      console.error(`⚠️ [${logName}] SMTP failed:`, err.message);
-      errors.push(`SMTP: ${err.message}`);
+    } catch (err465) {
+      console.warn(`⚠️ [${logName}] SMTP port 465 failed: ${err465.message}`);
+      errors.push(`SMTP (465): ${err465.message}`);
+    }
+
+    // Strategy B: Port 587 (STARTTLS)
+    try {
+      const { WorkerMailer } = await import('worker-mailer');
+      console.log(`📧 [${logName}] Trying SMTP on ${smtpHost}:587 (STARTTLS) for ${to}…`);
+
+      const mailer = await WorkerMailer.connect({
+        credentials: {
+          username: cleanUser,
+          password: cleanPass,
+        },
+        authType: ['login', 'plain'],
+        host: smtpHost,
+        port: 587,
+        secure: false,
+        startTls: true,
+        socketTimeoutMs: 15000,
+        responseTimeoutMs: 15000,
+      });
+
+      await mailer.send({
+        from: { name: fromName, email: cleanUser },
+        to: { email: to },
+        subject,
+        text,
+        html,
+      });
+
+      console.log(`✅ [${logName}] Sent successfully via SMTP (port 587) to ${to}`);
+      mailer.close().catch(() => {});
+      return;
+    } catch (err587) {
+      console.error(`⚠️ [${logName}] SMTP port 587 failed: ${err587.message}`);
+      errors.push(`SMTP (587): ${err587.message}`);
     }
   }
 
