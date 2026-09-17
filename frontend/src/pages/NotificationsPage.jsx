@@ -17,17 +17,17 @@ export default function NotificationsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  async function loadNotifications() {
-    setLoading(true);
+  async function loadNotifications(silent = false) {
+    if (!silent) setLoading(true);
     setError('');
     try {
       const res = await notificationApi.getNotifications();
       const list = res.data?.notifications || res.data || [];
       setNotifications(Array.isArray(list) ? list : []);
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -42,11 +42,8 @@ export default function NotificationsPage() {
         // Ignore read mark error
       }
     }
-    if (notif.match_id) {
-      navigate(`/chat/${notif.match_id}`);
-    } else {
-      setSelectedUserId(notif.from_user_id);
-    }
+    // Clicking the card or avatar opens their profile
+    setSelectedUserId(notif.from_user_id);
   }
 
   async function handleLikeBack(e, notif) {
@@ -70,8 +67,10 @@ export default function NotificationsPage() {
               : n
           )
         );
+        // Immediately open their profile so user sees who they just liked back!
+        setSelectedUserId(notif.from_user_id);
       }
-      await loadNotifications();
+      await loadNotifications(true);
     } catch (err) {
       setError(err.message || 'Failed to match back.');
     } finally {
@@ -299,7 +298,7 @@ export default function NotificationsPage() {
                       {notif.type === 'message'
                         ? 'Tap to view conversation and reply 💬'
                         : isRevealed
-                        ? 'Mutual match active! Tap to chat 💬'
+                        ? 'Mutual match active! Tap to view profile or chat 💬'
                         : 'Like them back to reveal their full photo & name.'}
                     </p>
                   )}
@@ -368,7 +367,7 @@ export default function NotificationsPage() {
         <GatedProfileModal
           targetUserId={selectedUserId}
           onClose={() => setSelectedUserId(null)}
-          onMatchCreated={() => loadNotifications()}
+          onMatchCreated={() => loadNotifications(true)}
         />
       )}
     </div>

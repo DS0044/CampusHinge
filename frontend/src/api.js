@@ -101,6 +101,7 @@ export const authApi = {
 // ── Profile ──
 export const profileApi = {
   getMyProfile: () => request('GET', '/profile'),
+  getProfileById: (userId) => request('GET', `/profile/${userId}`),
   createOrUpdate: (data) => request('POST', '/profile', data),
   getUploadUrl: (filename, content_type) =>
     request('POST', '/profile/upload-url', { filename, content_type }),

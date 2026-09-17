@@ -67,6 +67,7 @@ async function getMessages(req, res, next) {
       `SELECT
          m.id AS match_id,
          m.is_unlocked,
+         p.user_id AS partner_id,
          p.name AS partner_name,
          p.photos AS partner_photos
        FROM matches m
@@ -108,6 +109,7 @@ async function getMessages(req, res, next) {
       data: {
         match: {
           id: matchId,
+          partner_id: matchDetails.partner_id || null,
           partner_name: matchDetails.partner_name || 'Campus Match',
           partner_photo: partnerPhoto,
           is_unlocked: Boolean(matchDetails.is_unlocked || isSubscribed),

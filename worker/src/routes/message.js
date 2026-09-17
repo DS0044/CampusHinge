@@ -46,7 +46,7 @@ message.get('/:matchId', async (c) => {
 
   // Get partner info
   const { rows: matchInfo } = await query(db,
-    `SELECT p.name AS partner_name, p.photos AS partner_photos
+    `SELECT p.user_id AS partner_id, p.name AS partner_name, p.photos AS partner_photos
      FROM profiles p WHERE p.user_id = CASE WHEN $1 = (SELECT user1_id FROM matches WHERE id = $2) THEN (SELECT user2_id FROM matches WHERE id = $2) ELSE (SELECT user1_id FROM matches WHERE id = $2) END`,
     [userId, matchId]
   );
@@ -60,7 +60,13 @@ message.get('/:matchId', async (c) => {
   return c.json({
     success: true,
     data: {
-      match: { id: matchId, partner_name: details.partner_name || 'Campus Match', partner_photo: partnerPhoto, is_unlocked: true },
+      match: {
+        id: matchId,
+        partner_id: details.partner_id || null,
+        partner_name: details.partner_name || 'Campus Match',
+        partner_photo: partnerPhoto,
+        is_unlocked: true,
+      },
       messages: messages.reverse(),
       has_more: messages.length === limit,
     },
