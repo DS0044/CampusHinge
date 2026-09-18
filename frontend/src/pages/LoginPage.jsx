@@ -158,36 +158,19 @@ export default function LoginPage() {
         <label
           htmlFor="login-terms-checkbox"
           className={`terms-container ${acceptedTerms ? 'checked' : ''}`}
-          style={{ cursor: 'pointer' }}
         >
           <input
             type="checkbox"
             id="login-terms-checkbox"
+            className="terms-checkbox-input"
             checked={acceptedTerms}
             onChange={(e) => {
               if (loading) return;
               setAcceptedTerms(e.target.checked);
               if (error) setError('');
             }}
-            style={{
-              position: 'absolute',
-              opacity: 0,
-              width: '1px',
-              height: '1px',
-              margin: '-1px',
-              overflow: 'hidden',
-              clip: 'rect(0, 0, 0, 0)',
-            }}
           />
-          <div
-            className="terms-checkbox-box"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (loading) return;
-              setAcceptedTerms((prev) => !prev);
-              if (error) setError('');
-            }}
-          >
+          <div className="terms-checkbox-box" aria-hidden="true">
             {acceptedTerms && (
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                 <path

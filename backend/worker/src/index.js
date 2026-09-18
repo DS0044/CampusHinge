@@ -47,6 +47,7 @@ app.get('/health', (c) => {
   });
 });
 
+
 // ── API Routes ──
 app.route('/api/auth', authRoutes);
 app.route('/api/profile', profileRoutes);

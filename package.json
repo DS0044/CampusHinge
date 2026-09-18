@@ -14,6 +14,9 @@
     "test": "npm test --prefix backend",
     "migrate": "npm run migrate --prefix backend",
     "db:clear": "npm run db:clear --prefix backend",
-    "deploy:worker": "npm run deploy --prefix backend/worker"
+    "deploy:worker": "npm run deploy --prefix backend/worker",
+    "db": "node scripts/db-users.js list",
+    "users": "node scripts/db-users.js list",
+    "users:delete": "node scripts/db-users.js delete"
   }
 }

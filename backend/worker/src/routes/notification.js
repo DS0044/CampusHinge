@@ -108,6 +108,13 @@ notification.get('/gated-profile/:targetUserId', async (c) => {
   const hasMatched = matchRows.length > 0;
   const matchId = matchRows[0]?.id || null;
 
+  const { rows: myProfileRows } = await query(db, `SELECT interests FROM profiles WHERE user_id = $1`, [currentUserId]);
+  let myInterests = [];
+  try { myInterests = typeof myProfileRows[0]?.interests === 'string' ? JSON.parse(myProfileRows[0].interests) : myProfileRows[0]?.interests || []; } catch {}
+  const sharedInterests = Array.isArray(interests) && Array.isArray(myInterests)
+    ? interests.filter((i) => myInterests.includes(i))
+    : [];
+
   const { rows: userRows } = await query(db, `SELECT subscription_status, subscription_expiry FROM users WHERE id = $1`, [currentUserId]);
   const cu = userRows[0];
   const isSub = Boolean(cu && cu.subscription_status === 'active' && cu.subscription_expiry && new Date(cu.subscription_expiry) > new Date());
@@ -115,14 +122,14 @@ notification.get('/gated-profile/:targetUserId', async (c) => {
 
   if (isUnlocked) {
     return c.json({ success: true, data: { profile: {
-      user_id: raw.user_id, name: raw.name, bio: raw.bio, photos, year: raw.year, gender: raw.gender,
-      interests, is_locked: false, has_matched: hasMatched, match_id: matchId, is_subscribed: isSub,
+      user_id: raw.user_id, name: raw.name, bio: raw.bio, primary_photo: photos[0] || null, photos, year: raw.year, gender: raw.gender,
+      interests, shared_interests: sharedInterests, is_locked: false, has_matched: hasMatched, match_id: matchId, is_subscribed: isSub,
     } } });
   }
 
   return c.json({ success: true, data: { profile: {
     user_id: raw.user_id, name: 'Someone', primary_photo: photos[0] || null, photos: [photos[0] || null],
-    is_locked: true, has_matched: false, match_id: null, is_subscribed: false,
+    interests: [], shared_interests: sharedInterests, is_locked: true, has_matched: false, match_id: null, is_subscribed: false,
   } } });
 });
 

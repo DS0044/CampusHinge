@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { messageApi, getPhotoUrl } from '../api';
+import GatedProfileModal from '../components/GatedProfileModal';
 import {
   joinMatch,
   leaveMatch,
@@ -61,6 +62,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   const [partnerTyping, setPartnerTyping] = useState(false);
   const bottomRef = useRef(null);
@@ -303,25 +305,39 @@ export default function ChatPage() {
           ←
         </button>
 
-        <div className="avatar" style={{ width: 42, height: 42, overflow: 'hidden' }}>
-          {matchInfo?.partner_photo ? (
-            <img
-              src={getPhotoUrl(matchInfo.partner_photo)}
-              alt={matchInfo.partner_name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            '💬'
-          )}
-        </div>
+        <div
+          onClick={() => matchInfo?.partner_id && setSelectedUserId(matchInfo.partner_id)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            cursor: matchInfo?.partner_id ? 'pointer' : 'default',
+            flex: 1,
+            overflow: 'hidden',
+          }}
+          title={matchInfo?.partner_id ? 'Click to view full profile' : ''}
+        >
+          <div className="avatar" style={{ width: 42, height: 42, overflow: 'hidden', flexShrink: 0 }}>
+            {matchInfo?.partner_photo ? (
+              <img
+                src={getPhotoUrl(matchInfo.partner_photo)}
+                alt={matchInfo.partner_name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              '💬'
+            )}
+          </div>
 
-        <div>
-          <h2 style={{ fontSize: '1.05rem', margin: 0 }}>
-            {matchInfo?.partner_name || 'Campus Match'}
-          </h2>
-          <span style={{ fontSize: '0.72rem', color: '#00e676', fontWeight: '600' }}>
-            💬 Matched
-          </span>
+          <div style={{ overflow: 'hidden' }}>
+            <h2 style={{ fontSize: '1.05rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {matchInfo?.partner_name || 'Campus Match'}
+              {matchInfo?.partner_id && <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>ℹ️</span>}
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: '#00e676', fontWeight: '600' }}>
+              💬 Matched {matchInfo?.partner_id && '• Tap for profile'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -412,6 +428,14 @@ export default function ChatPage() {
           Send
         </button>
       </form>
+
+      {/* Profile Modal */}
+      {selectedUserId && (
+        <GatedProfileModal
+          targetUserId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+        />
+      )}
     </div>
   );
 }

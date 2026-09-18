@@ -224,6 +224,17 @@ async function getGatedProfile(req, res, next) {
 
     const isUnlocked = hasMatched || isSubscribed;
 
+    // 4. Compute shared interests
+    const { rows: myProfileRows } = await db.query(
+      `SELECT interests FROM profiles WHERE user_id = $1`,
+      [currentUserId]
+    );
+    let myInterests = [];
+    try { myInterests = typeof myProfileRows[0]?.interests === 'string' ? JSON.parse(myProfileRows[0].interests) : myProfileRows[0]?.interests || []; } catch {}
+    const sharedInterests = Array.isArray(interests) && Array.isArray(myInterests)
+      ? interests.filter((i) => myInterests.includes(i))
+      : [];
+
     if (isUnlocked) {
       return res.status(200).json({
         success: true,
@@ -232,10 +243,12 @@ async function getGatedProfile(req, res, next) {
             user_id: rawProfile.user_id,
             name: rawProfile.name,
             bio: rawProfile.bio,
+            primary_photo: photos[0] || null,
             photos,
             year: rawProfile.year,
             gender: rawProfile.gender,
             interests,
+            shared_interests: sharedInterests,
             is_locked: false,
             has_matched: hasMatched,
             match_id: matchId,
@@ -254,6 +267,8 @@ async function getGatedProfile(req, res, next) {
           name: 'Someone',
           primary_photo: photos[0] || null,
           photos: [photos[0] || null],
+          interests: [],
+          shared_interests: sharedInterests,
           is_locked: true,
           has_matched: false,
           match_id: null,

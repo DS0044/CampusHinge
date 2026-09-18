@@ -179,9 +179,15 @@ async function getProfileById(req, res, next) {
       throw new AppError('Profile not found.', 404);
     }
 
+    const row = rows[0];
+    let photos = [];
+    try { photos = typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos || []; } catch {}
+    let interests = [];
+    try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : row.interests || []; } catch {}
+
     res.status(200).json({
       success: true,
-      data: { profile: rows[0] },
+      data: { profile: { ...row, photos, interests } },
     });
   } catch (err) {
     next(err);

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { matchApi, getPhotoUrl } from '../api';
 import { onSocketEvent } from '../socketManager';
+import GatedProfileModal from '../components/GatedProfileModal';
 
 export default function MatchesPage() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   useEffect(() => {
     loadMatches();
@@ -102,12 +104,33 @@ export default function MatchesPage() {
                 <div
                   key={matchId}
                   className="match-card"
-                  onClick={() => navigate(`/chat/${matchId}`)}
+                  onClick={() => match.user_id ? setSelectedUserId(match.user_id) : navigate(`/chat/${matchId}`)}
+                  style={{ cursor: 'pointer' }}
                 >
                   {avatarPhoto ? (
-                    <img src={getPhotoUrl(avatarPhoto)} alt={name} className="avatar" />
+                    <img
+                      src={getPhotoUrl(avatarPhoto)}
+                      alt={name}
+                      className="avatar"
+                      onClick={(e) => {
+                        if (match.user_id) {
+                          e.stopPropagation();
+                          setSelectedUserId(match.user_id);
+                        }
+                      }}
+                      title="View profile"
+                    />
                   ) : (
-                    <div className="avatar">
+                    <div
+                      className="avatar"
+                      onClick={(e) => {
+                        if (match.user_id) {
+                          e.stopPropagation();
+                          setSelectedUserId(match.user_id);
+                        }
+                      }}
+                      title="View profile"
+                    >
                       {initial}
                     </div>
                   )}
@@ -135,6 +158,15 @@ export default function MatchesPage() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Profile Modal */}
+      {selectedUserId && (
+        <GatedProfileModal
+          targetUserId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onMatchCreated={() => loadMatches()}
+        />
       )}
     </div>
   );
