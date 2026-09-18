@@ -12,6 +12,8 @@
     "build:frontend": "npm run build --prefix frontend",
     "build:admin": "npm run build --prefix admin-panel",
     "test": "npm test --prefix backend",
+    "legacy:test": "npm test --prefix backend-legacy",
+    "legacy:dev": "npm run dev --prefix backend-legacy",
     "migrate": "npm run migrate --prefix backend",
     "db:clear": "npm run db:clear --prefix backend",
     "deploy:worker": "npm run deploy --prefix backend/worker",
