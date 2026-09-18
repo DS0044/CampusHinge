@@ -12,4 +12,5 @@ campusapp.db*
 uploads/
 .agents/
 .vercel/
-
+.idea/
+.vscode/

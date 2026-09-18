@@ -140,4 +140,108 @@ async function unbanUser(req, res, next) {
   }
 }
 
-module.exports = { getReports, reviewReport, banUser, unbanUser };
+/**
+ * GET /api/admin/stats
+ * Return overall application KPI metrics.
+ */
+async function getStats(_req, res, next) {
+  try {
+    const totalUsers = db.db.prepare('SELECT COUNT(*) as count FROM users').get()?.count || 0;
+    const verifiedUsers = db.db.prepare('SELECT COUNT(*) as count FROM users WHERE email_verified = 1').get()?.count || 0;
+    const bannedUsers = db.db.prepare('SELECT COUNT(*) as count FROM users WHERE is_banned = 1').get()?.count || 0;
+    const totalReports = db.db.prepare('SELECT COUNT(*) as count FROM reports').get()?.count || 0;
+    const pendingReports = db.db.prepare("SELECT COUNT(*) as count FROM reports WHERE status = 'pending'").get()?.count || 0;
+    const totalMatches = db.db.prepare('SELECT COUNT(*) as count FROM matches').get()?.count || 0;
+    const totalMessages = db.db.prepare('SELECT COUNT(*) as count FROM messages').get()?.count || 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        verifiedUsers,
+        bannedUsers,
+        totalReports,
+        pendingReports,
+        totalMatches,
+        totalMessages,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/users
+ * Search and list users with their profile details.
+ */
+async function getUsers(req, res, next) {
+  try {
+    const { search = '', role = '', status = '', limit = 100, offset = 0 } = req.query;
+
+    let query = `
+      SELECT u.id, u.email, u.role, u.email_verified, u.is_banned, u.subscription_status,
+             u.profile_completed, u.last_active, u.created_at,
+             p.name, p.bio, p.photos, p.branch, p.year, p.gender, p.interested_in, p.interests
+      FROM users u
+      LEFT JOIN profiles p ON p.user_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (search) {
+      query += ` AND (u.email LIKE $${params.length + 1} OR p.name LIKE $${params.length + 2} OR p.branch LIKE $${params.length + 3})`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (role) {
+      query += ` AND u.role = $${params.length + 1}`;
+      params.push(role);
+    }
+
+    if (status === 'banned') {
+      query += ` AND u.is_banned = 1`;
+    } else if (status === 'active') {
+      query += ` AND (u.is_banned = 0 OR u.is_banned IS NULL)`;
+    }
+
+    query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
+
+    const { rows } = await db.query(query, params);
+
+    const formattedUsers = rows.map((u) => {
+      let photos = [];
+      try {
+        photos = typeof u.photos === 'string' ? JSON.parse(u.photos) : (u.photos || []);
+      } catch {
+        photos = [];
+      }
+      let interests = [];
+      try {
+        interests = typeof u.interests === 'string' ? JSON.parse(u.interests) : (u.interests || []);
+      } catch {
+        interests = [];
+      }
+      return {
+        ...u,
+        photos,
+        interests,
+      };
+    });
+
+    const totalRow = db.db.prepare('SELECT COUNT(*) as count FROM users').get();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users: formattedUsers,
+        total: totalRow?.count || 0,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getReports, reviewReport, banUser, unbanUser, getStats, getUsers };

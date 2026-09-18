@@ -179,12 +179,8 @@ export default function ProfileSetupPage() {
   }
 
   // Validation status checks
-  const isNameValid = form.name.trim().length > 0;
-  const isGenderValid = Boolean(form.gender);
-  const isInterestedValid = Boolean(form.interested_in);
   const photoCount = photos.length;
   const isPhotoCountValid = photoCount >= 2 && photoCount <= 6;
-  const isFormValid = isNameValid && isGenderValid && isInterestedValid && isPhotoCountValid;
 
   function toggleInterest(tag) {
     setInterestError('');

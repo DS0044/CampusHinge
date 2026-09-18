@@ -128,12 +128,22 @@ async function verifyOTP(email, code) {
     return true;
   }
 
-  // Check if code was already used
+  // Check if code was already used or superseded by a newer OTP
   const { rows: usedRows } = await db.query(
-    `SELECT id FROM otp_codes WHERE email = $1 AND code = $2 AND used = true ORDER BY created_at DESC LIMIT 1`,
+    `SELECT id, created_at FROM otp_codes WHERE email = $1 AND code = $2 AND used = true ORDER BY created_at DESC LIMIT 1`,
     [cleanEmail, cleanCode]
   );
   if (usedRows.length > 0) {
+    // If a newer OTP exists for this email, it was invalidated by resend
+    const { rows: newerRows } = await db.query(
+      `SELECT id FROM otp_codes WHERE email = $1 AND created_at > $2 LIMIT 1`,
+      [cleanEmail, usedRows[0].created_at]
+    );
+    if (newerRows.length > 0) {
+      console.warn(`🔍  [OTP VERIFY] Superseded/invalidated OTP entered for ${cleanEmail}`);
+      throw new AppError('This code has expired, please use the latest one sent.', 400);
+    }
+
     console.warn(`🔍  [OTP VERIFY] OTP already used for ${cleanEmail}`);
     throw new AppError('This OTP has already been used. Please request a new one.', 400);
   }

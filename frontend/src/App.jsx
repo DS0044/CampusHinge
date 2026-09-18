@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
 import VerifyOtpPage from './pages/VerifyOtpPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import DiscoverPage from './pages/DiscoverPage';

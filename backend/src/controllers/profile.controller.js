@@ -65,10 +65,30 @@ async function createOrUpdateProfile(req, res, next) {
       );
     }
 
+    let savedPhotos = [];
+    try {
+      savedPhotos = typeof rows[0].photos === 'string' ? JSON.parse(rows[0].photos) : (rows[0].photos || []);
+    } catch {
+      savedPhotos = [];
+    }
+    let savedInterests = [];
+    try {
+      savedInterests = typeof rows[0].interests === 'string' ? JSON.parse(rows[0].interests) : (rows[0].interests || []);
+    } catch {
+      savedInterests = [];
+    }
+
     res.status(200).json({
       success: true,
       message: 'Profile saved successfully.',
-      data: { profile: { ...rows[0], profile_completed: true } },
+      data: {
+        profile: {
+          ...rows[0],
+          photos: savedPhotos,
+          interests: savedInterests,
+          profile_completed: true,
+        },
+      },
     });
   } catch (err) {
     next(err);
@@ -109,11 +129,26 @@ async function getMyProfile(req, res, next) {
       });
     }
 
+    let myPhotos = [];
+    try {
+      myPhotos = typeof row.photos === 'string' ? JSON.parse(row.photos) : (row.photos || []);
+    } catch {
+      myPhotos = [];
+    }
+    let myInterests = [];
+    try {
+      myInterests = typeof row.interests === 'string' ? JSON.parse(row.interests) : (row.interests || []);
+    } catch {
+      myInterests = [];
+    }
+
     res.status(200).json({
       success: true,
       data: {
         profile: {
           ...row,
+          photos: myPhotos,
+          interests: myInterests,
           has_profile: true,
           profile_completed: Boolean(row.profile_completed),
         },
@@ -175,7 +210,7 @@ async function uploadPhoto(req, res, next) {
     const fs = require('fs');
 
     const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/*', 'application/octet-stream'];
     const savedUrls = [];
 
     const userDir = path.join(__dirname, `../../uploads/${userId}`);
@@ -187,11 +222,12 @@ async function uploadPhoto(req, res, next) {
       if (photo.size > MAX_FILE_SIZE) {
         throw new AppError(`File "${photo.name}" exceeds 5MB size limit.`, 400);
       }
-      if (!ALLOWED_MIME_TYPES.includes(photo.mimetype)) {
+      const ext = (path.extname(photo.name) || '.jpg').toLowerCase();
+      const validExts = ['.jpg', '.jpeg', '.png', '.webp'];
+      if (!ALLOWED_MIME_TYPES.includes(photo.mimetype) && !validExts.includes(ext)) {
         throw new AppError(`File "${photo.name}" format is not supported. Use JPG, PNG, or WEBP.`, 400);
       }
 
-      const ext = path.extname(photo.name) || '.jpg';
       const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
       const filePath = path.join(userDir, filename);
 

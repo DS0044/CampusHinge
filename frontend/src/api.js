@@ -43,7 +43,7 @@ export function logout() {
   // Clean up the singleton socket connection
   try {
     import('./socketManager').then(({ destroySocket }) => destroySocket()).catch(() => {});
-  } catch (e) {
+  } catch {
     // socketManager may not be loaded in all contexts
   }
   try {
@@ -73,7 +73,7 @@ async function request(method, path, body = null) {
       try {
         localStorage.clear();
         sessionStorage.clear();
-      } catch (e) {}
+      } catch {}
       const publicPaths = ['/login', '/signup', '/verify-otp', '/terms', '/privacy'];
       if (!publicPaths.includes(window.location.pathname)) {
         window.location.replace('/login');
