@@ -12,6 +12,7 @@ import {
   onConnectionStateChange,
   getSocket,
 } from '../socketManager';
+import { INTENT_CONFIGS, IntentType } from '../constants/intents';
 
 export interface ChatMessage {
   id: string;
@@ -27,6 +28,7 @@ export interface MatchInfo {
   partner_id?: string;
   partner_name?: string;
   partner_photo?: string | null;
+  intent?: IntentType;
   [key: string]: unknown;
 }
 
@@ -360,10 +362,32 @@ export default function ChatPage() {
           </div>
 
           <div style={{ overflow: 'hidden' }}>
-            <h2 style={{ fontSize: '1.05rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {matchInfo?.partner_name || 'Campus Match'}
-              {matchInfo?.partner_id && <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>ℹ️</span>}
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'nowrap' }}>
+              <h2 style={{ fontSize: '1.05rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {matchInfo?.partner_name || 'Campus Match'}
+                {matchInfo?.partner_id && <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>ℹ️</span>}
+              </h2>
+              {matchInfo?.intent && INTENT_CONFIGS[matchInfo.intent] && (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    padding: '0.12rem 0.45rem',
+                    borderRadius: '9999px',
+                    backgroundColor: `${INTENT_CONFIGS[matchInfo.intent].badgeColor}22`,
+                    color: INTENT_CONFIGS[matchInfo.intent].badgeColor,
+                    border: `1px solid ${INTENT_CONFIGS[matchInfo.intent].badgeColor}44`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {INTENT_CONFIGS[matchInfo.intent].icon} {INTENT_CONFIGS[matchInfo.intent].label}
+                </span>
+              )}
+            </div>
             <span style={{ fontSize: '0.72rem', color: '#00e676', fontWeight: '600' }}>
               💬 Matched {matchInfo?.partner_id && '• Tap for profile'}
             </span>

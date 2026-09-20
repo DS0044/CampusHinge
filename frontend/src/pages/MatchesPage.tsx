@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { matchApi, getPhotoUrl } from '../api';
 import { onSocketEvent } from '../socketManager';
 import GatedProfileModal from '../components/GatedProfileModal';
+import { INTENT_CONFIGS, IntentType } from '../constants/intents';
 
 export interface MatchItem {
   id?: string;
@@ -11,6 +12,7 @@ export interface MatchItem {
   other_user_name?: string;
   photos?: string | string[];
   user_id?: string;
+  intent?: IntentType;
   last_message?: string;
   last_message_at?: string;
   [key: string]: unknown;
@@ -149,8 +151,26 @@ export default function MatchesPage() {
                     </div>
                   )}
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: '600' }}>{name}</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                      <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: '600', margin: 0 }}>{name}</h4>
+                      {match.intent && INTENT_CONFIGS[match.intent] && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            padding: '0.12rem 0.45rem',
+                            borderRadius: '9999px',
+                            backgroundColor: `${INTENT_CONFIGS[match.intent].badgeColor}22`,
+                            color: INTENT_CONFIGS[match.intent].badgeColor,
+                            border: `1px solid ${INTENT_CONFIGS[match.intent].badgeColor}44`,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.2rem',
+                          }}
+                        >
+                          {INTENT_CONFIGS[match.intent].icon} {INTENT_CONFIGS[match.intent].label}
+                        </span>
+                      )}
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '0.2rem' }}>
                       {match.last_message || 'Matched! Tap to say hello 👋'}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { INTENTS } from '../constants/intent.constants';
 
 export const createProfileSchema = z.object({
   name: z
@@ -16,6 +17,12 @@ export const createProfileSchema = z.object({
     .array(z.string().min(1))
     .min(2, 'At least 2 photos are required')
     .max(6, 'Maximum 6 photos allowed'),
+  branch: z
+    .string()
+    .max(100, 'Branch must be at most 100 characters')
+    .trim()
+    .optional()
+    .nullable(),
   year: z
     .number()
     .int()
@@ -38,6 +45,25 @@ export const createProfileSchema = z.object({
     .max(20, 'Maximum 20 interests allowed')
     .optional()
     .default([]),
+  activity_tags: z
+    .array(
+      z.string().min(1).max(50).trim()
+    )
+    .max(20, 'Maximum 20 activity tags allowed')
+    .optional()
+    .default([]),
+  active_intent: z
+    .enum(INTENTS, {
+      invalid_type_error: 'Active intent must be dating, friendship, study, activity, or networking',
+    })
+    .optional(),
+});
+
+export const updateIntentSchema = z.object({
+  active_intent: z.enum(INTENTS, {
+    required_error: 'active_intent is required',
+    invalid_type_error: 'Active intent must be dating, friendship, study, activity, or networking',
+  }),
 });
 
 export const presignedUrlSchema = z.object({
@@ -49,5 +75,6 @@ export const presignedUrlSchema = z.object({
     .regex(/^image\/(jpeg|jpg|png|webp|heic)$/, 'Only image files are allowed (jpeg, png, webp, heic)'),
 });
 
-export default { createProfileSchema, presignedUrlSchema };
-module.exports = { createProfileSchema, presignedUrlSchema };
+export default { createProfileSchema, updateIntentSchema, presignedUrlSchema };
+module.exports = { createProfileSchema, updateIntentSchema, presignedUrlSchema };
+

@@ -1,3 +1,5 @@
+import { IntentType } from '../constants/intents';
+
 export type Gender = 'male' | 'female' | 'non_binary';
 export type InterestedIn = 'male' | 'female' | 'everyone';
 
@@ -11,6 +13,7 @@ export interface User {
   email_notifications?: boolean | number;
   profile_completed?: boolean | number;
   has_profile?: boolean;
+  active_intent?: IntentType;
   last_active?: string | null;
   accepted_terms_at?: string | null;
   terms_version?: string | null;
@@ -29,6 +32,8 @@ export interface Profile {
   gender: Gender;
   interested_in: InterestedIn;
   interests: string[];
+  activity_tags?: string[];
+  active_intent?: IntentType;
   age?: number;
   email_notifications?: boolean | number;
   created_at?: string;

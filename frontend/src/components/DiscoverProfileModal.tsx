@@ -388,45 +388,51 @@ export default function DiscoverProfileModal({
                 </div>
               )}
 
-              {/* All Interests */}
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
-                  All Interests ({candidateInterests.length}):
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {candidateInterests.map((tag, idx) => {
-                    const isMatch = sharedInterests.includes(tag);
-                    return (
-                      <span
-                        key={idx}
-                        style={{
-                          background: isMatch
-                            ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%)'
-                            : 'rgba(255, 255, 255, 0.08)',
-                          border: isMatch ? '1px solid rgba(244, 114, 182, 0.5)' : '1px solid var(--glass-border)',
-                          color: isMatch ? '#fbcfe8' : 'rgba(255, 255, 255, 0.88)',
-                          padding: '0.3rem 0.7rem',
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: '0.78rem',
-                          fontWeight: isMatch ? 600 : 400,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                        }}
-                      >
-                        {isMatch && <span style={{ fontSize: '0.75rem' }}>✨</span>}
-                        <span>{tag}</span>
-                      </span>
-                    );
-                  })}
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Interests
+                </span>
+                {sharedInterests.length > 0 && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--primary-pink)', fontWeight: 600 }}>
+                    {sharedInterests.length} shared
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {candidateInterests.map((tag, idx) => {
+                  const isMatch = userInterests.includes(tag);
+                  return (
+                    <span
+                      key={idx}
+                      style={{
+                        background: isMatch
+                          ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%)'
+                          : 'rgba(255, 255, 255, 0.08)',
+                        border: isMatch ? '1px solid rgba(244, 114, 182, 0.5)' : '1px solid var(--glass-border)',
+                        color: isMatch ? '#fbcfe8' : 'rgba(255, 255, 255, 0.88)',
+                        padding: '0.3rem 0.7rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.78rem',
+                        fontWeight: isMatch ? 600 : 400,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      {isMatch && <span style={{ fontSize: '0.75rem' }}>✨</span>}
+                      <span>{tag}</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Action Buttons (Pass / Super Like / Like) directly in detail modal */}
+          {/* Action Buttons with Intent-Aware Labels & Icons */}
           {onSwipe && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.25rem' }}>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
                   className="btn-secondary"
@@ -434,7 +440,7 @@ export default function DiscoverProfileModal({
                     onSwipe('pass');
                     onClose();
                   }}
-                  style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
+                  style={{ flex: 1, padding: '0.75rem', fontSize: '0.9rem' }}
                 >
                   ✕ Pass
                 </button>
@@ -451,16 +457,17 @@ export default function DiscoverProfileModal({
                     style={{
                       flex: 1.2,
                       padding: '0.75rem',
-                      fontSize: '0.95rem',
+                      fontSize: '0.9rem',
                       background: superLikeAvailable ? 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)' : 'rgba(255,215,0,0.15)',
                       color: superLikeAvailable ? '#000' : '#888',
                       fontWeight: '700',
                       border: '1px solid rgba(255,215,0,0.4)',
                       boxShadow: superLikeAvailable ? '0 4px 15px rgba(255,215,0,0.35)' : 'none',
                       cursor: superLikeAvailable ? 'pointer' : 'not-allowed',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    ⭐ Super Like
+                    {cfg.superLikeIcon} {cfg.superLikeLabel}
                   </button>
                 )}
                 <button
@@ -469,14 +476,20 @@ export default function DiscoverProfileModal({
                     onSwipe('like');
                     onClose();
                   }}
-                  style={{ flex: 1, padding: '0.75rem', fontSize: '0.95rem' }}
+                  style={{
+                    flex: 1.2,
+                    padding: '0.75rem',
+                    fontSize: '0.9rem',
+                    background: `linear-gradient(135deg, ${cfg.color} 0%, var(--primary-pink) 100%)`,
+                    whiteSpace: 'nowrap',
+                  }}
                 >
-                  💖 Like
+                  {cfg.likeIcon} {cfg.likeLabel}
                 </button>
               </div>
               {canSuperLike && !superLikeAvailable && superLikeCooldownText && (
                 <span style={{ fontSize: '0.75rem', color: '#ffd700', textAlign: 'center', fontWeight: '600' }}>
-                  Next Super Like available in {superLikeCooldownText}
+                  Next {cfg.superLikeLabel} available in {superLikeCooldownText}
                 </span>
               )}
             </div>

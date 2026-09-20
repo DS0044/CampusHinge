@@ -70,10 +70,12 @@ export async function getMessages(req: Request, res: Response, next: NextFunctio
       partner_id?: string;
       partner_name?: string;
       partner_photos?: string;
+      intent?: string;
     }>(
       `SELECT
          m.id AS match_id,
          m.is_unlocked,
+         COALESCE(m.intent, 'dating') AS intent,
          p.user_id AS partner_id,
          p.name AS partner_name,
          p.photos AS partner_photos

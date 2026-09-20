@@ -120,10 +120,14 @@ export const authApi = {
     request<GoogleAuthResponse>('POST', '/auth/google', { credential }),
 };
 
+import { IntentType } from './constants/intents';
+
 // ── Profile ──
 export const profileApi = {
   getMyProfile: () => request<ApiResponse<{ profile?: Profile } & Profile>>('GET', '/profile'),
   getProfileById: (userId: string) => request<ApiResponse<Profile>>('GET', `/profile/${userId}`),
+  updateIntent: (active_intent: IntentType) =>
+    request<ApiResponse<{ active_intent: IntentType }>>('PATCH', '/profile/intent', { active_intent }),
   createOrUpdate: (data: Partial<Profile> & Record<string, unknown>) =>
     request<ApiResponse<Profile>>('POST', '/profile', data),
   getUploadUrl: (filename: string, content_type: string) =>
@@ -173,13 +177,14 @@ export const profileApi = {
 
 // ── Discover ──
 export const discoverApi = {
-  getDeck: () => request<ApiResponse<DiscoverDeckResponse>>('GET', '/discover'),
+  getDeck: (intent?: IntentType) =>
+    request<ApiResponse<DiscoverDeckResponse>>('GET', intent ? `/discover?intent=${encodeURIComponent(intent)}` : '/discover'),
 };
 
 // ── Swipe ──
 export const swipeApi = {
-  swipe: (swiped_id: string, action: SwipeAction) =>
-    request<ApiResponse<SwipeResponse>>('POST', '/swipe', { swiped_id, action }),
+  swipe: (swiped_id: string, action: SwipeAction, intent?: IntentType) =>
+    request<ApiResponse<SwipeResponse>>('POST', '/swipe', { swiped_id, action, intent }),
 };
 
 // ── Matches ──

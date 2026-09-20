@@ -7,6 +7,9 @@ import db from '../config/db';
 import { getPresignedUploadUrl } from '../services/s3.service';
 import { AppError } from '../middleware/errorHandler';
 
+import { parseJsonArray } from '../services/scoring.service';
+import { INTENTS } from '../constants/intent.constants';
+
 /**
  * POST /api/profile
  * Create or update the authenticated user's profile (upsert).
@@ -14,7 +17,19 @@ import { AppError } from '../middleware/errorHandler';
 export async function createOrUpdateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
-    const { name, bio, photos, year, gender, interested_in, interests, email_notifications } = req.body;
+    const {
+      name,
+      bio,
+      photos,
+      branch,
+      year,
+      gender,
+      interested_in,
+      interests,
+      activity_tags,
+      active_intent,
+      email_notifications,
+    } = req.body;
 
     let photoArray: string[] = [];
     if (Array.isArray(photos)) {
@@ -30,16 +45,18 @@ export async function createOrUpdateProfile(req: Request, res: Response, next: N
     const profileId = crypto.randomUUID();
 
     const { rows } = await db.query(
-      `INSERT INTO profiles (id, user_id, name, bio, photos, year, gender, interested_in, interests)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO profiles (id, user_id, name, bio, photos, branch, year, gender, interested_in, interests, activity_tags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (user_id) DO UPDATE SET
          name = EXCLUDED.name,
          bio = EXCLUDED.bio,
          photos = EXCLUDED.photos,
+         branch = EXCLUDED.branch,
          year = EXCLUDED.year,
          gender = EXCLUDED.gender,
          interested_in = EXCLUDED.interested_in,
          interests = EXCLUDED.interests,
+         activity_tags = EXCLUDED.activity_tags,
          updated_at = datetime('now')
        RETURNING *`,
       [
@@ -48,10 +65,12 @@ export async function createOrUpdateProfile(req: Request, res: Response, next: N
         name,
         bio || null,
         JSON.stringify(photoArray),
+        branch || null,
         year || null,
         gender,
         interested_in,
         typeof interests === 'string' ? interests : JSON.stringify(interests || []),
+        typeof activity_tags === 'string' ? activity_tags : JSON.stringify(activity_tags || []),
       ]
     );
 
@@ -59,6 +78,13 @@ export async function createOrUpdateProfile(req: Request, res: Response, next: N
       `UPDATE users SET profile_completed = 1, updated_at = datetime('now') WHERE id = $1`,
       [userId]
     );
+
+    if (active_intent && INTENTS.includes(active_intent)) {
+      await db.query(
+        `UPDATE users SET active_intent = $1, updated_at = datetime('now') WHERE id = $2`,
+        [active_intent, userId]
+      );
+    }
 
     if (typeof email_notifications === 'boolean') {
       await db.query(
@@ -70,7 +96,44 @@ export async function createOrUpdateProfile(req: Request, res: Response, next: N
     res.status(200).json({
       success: true,
       message: 'Profile saved successfully.',
-      data: { profile: { ...rows[0], profile_completed: true } },
+      data: {
+        profile: {
+          ...rows[0],
+          interests: parseJsonArray(rows[0].interests),
+          activity_tags: parseJsonArray(rows[0].activity_tags),
+          photos: parseJsonArray(rows[0].photos),
+          active_intent: active_intent || 'dating',
+          profile_completed: true,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/profile/intent
+ * Update the user's active intent.
+ */
+export async function updateActiveIntent(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.id;
+    const { active_intent } = req.body;
+
+    if (!INTENTS.includes(active_intent)) {
+      throw new AppError('Invalid active intent.', 400);
+    }
+
+    await db.query(
+      `UPDATE users SET active_intent = $1, updated_at = datetime('now') WHERE id = $2`,
+      [active_intent, userId]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Active intent updated to ${active_intent}.`,
+      data: { active_intent },
     });
   } catch (err) {
     next(err);
@@ -86,7 +149,7 @@ export async function getMyProfile(req: Request, res: Response, next: NextFuncti
     const userId = req.user!.id;
 
     const { rows } = await db.query(
-      `SELECT p.*, u.email, u.subscription_status, u.email_notifications, u.profile_completed
+      `SELECT p.*, u.email, u.active_intent, u.subscription_status, u.email_notifications, u.profile_completed
        FROM users u
        LEFT JOIN profiles p ON p.user_id = u.id
        WHERE u.id = $1`,
@@ -106,6 +169,7 @@ export async function getMyProfile(req: Request, res: Response, next: NextFuncti
           profile: null,
           has_profile: false,
           profile_completed: false,
+          active_intent: row.active_intent || 'dating',
         },
       });
       return;
@@ -116,6 +180,10 @@ export async function getMyProfile(req: Request, res: Response, next: NextFuncti
       data: {
         profile: {
           ...row,
+          interests: parseJsonArray(row.interests),
+          activity_tags: parseJsonArray(row.activity_tags),
+          photos: parseJsonArray(row.photos),
+          active_intent: row.active_intent || 'dating',
           has_profile: true,
           profile_completed: Boolean(row.profile_completed),
         },
@@ -135,10 +203,10 @@ export async function getProfileById(req: Request, res: Response, next: NextFunc
     const { userId } = req.params;
 
     const { rows } = await db.query(
-      `SELECT p.id, p.user_id, p.name, p.bio, p.photos, p.year, p.gender, p.interests
+      `SELECT p.id, p.user_id, p.name, p.bio, p.photos, p.branch, p.year, p.gender, p.interests, p.activity_tags, u.active_intent
        FROM profiles p
        JOIN users u ON u.id = p.user_id
-       WHERE p.user_id = $1 AND u.is_banned = false`,
+       WHERE p.user_id = $1 AND u.is_banned = 0`,
       [userId]
     );
 
@@ -147,14 +215,21 @@ export async function getProfileById(req: Request, res: Response, next: NextFunc
     }
 
     const row = rows[0];
-    let photos: string[] = [];
-    try { photos = typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos || []; } catch {}
-    let interests: string[] = [];
-    try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : row.interests || []; } catch {}
+    const photos = parseJsonArray(row.photos);
+    const interests = parseJsonArray(row.interests);
+    const activity_tags = parseJsonArray(row.activity_tags);
 
     res.status(200).json({
       success: true,
-      data: { profile: { ...row, photos, interests } },
+      data: {
+        profile: {
+          ...row,
+          photos,
+          interests,
+          activity_tags,
+          active_intent: row.active_intent || 'dating',
+        },
+      },
     });
   } catch (err) {
     next(err);
@@ -237,5 +312,5 @@ export async function getUploadUrl(req: Request, res: Response, next: NextFuncti
   }
 }
 
-export default { createOrUpdateProfile, getMyProfile, getProfileById, getUploadUrl, uploadPhoto };
-module.exports = { createOrUpdateProfile, getMyProfile, getProfileById, getUploadUrl, uploadPhoto };
+export default { createOrUpdateProfile, updateActiveIntent, getMyProfile, getProfileById, getUploadUrl, uploadPhoto };
+module.exports = { createOrUpdateProfile, updateActiveIntent, getMyProfile, getProfileById, getUploadUrl, uploadPhoto };

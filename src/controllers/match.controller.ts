@@ -13,6 +13,7 @@ export async function getMatches(req: Request, res: Response, next: NextFunction
       `SELECT
          m.id AS match_id,
          m.is_unlocked,
+         COALESCE(m.intent, 'dating') AS intent,
          m.created_at AS matched_at,
          p.user_id,
          p.name,

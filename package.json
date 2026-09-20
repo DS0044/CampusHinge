@@ -19,7 +19,7 @@
     "users": "tsx scripts/db-users.ts list",
     "users:delete": "tsx scripts/db-users.ts delete",
     "db:clear": "tsx src/db/clear.ts",
-    "test": "node --import tsx --test tests/auth.validator.test.js tests/pass_exclusion.test.js tests/resend_otp.test.js tests/super_like.test.js tests/terms.test.js",
+    "test": "node --import tsx --test tests/auth.validator.test.js tests/pass_exclusion.test.js tests/resend_otp.test.js tests/super_like.test.js tests/terms.test.js tests/multi_intent.test.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],

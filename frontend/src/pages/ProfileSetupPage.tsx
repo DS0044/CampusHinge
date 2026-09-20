@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { profileApi, logout, getPhotoUrl } from '../api';
 import { PREDEFINED_INTERESTS, MAX_INTERESTS_LIMIT } from '../constants/interests';
+import { INTENTS, IntentType, INTENT_CONFIGS, PREDEFINED_ACTIVITY_TAGS } from '../constants/intents';
 import { Gender, InterestedIn } from '../types';
 
 interface GenderOption {
@@ -39,10 +40,13 @@ interface PhotoItem {
 interface ProfileFormState {
   name: string;
   bio: string;
+  branch: string;
   year: string;
   gender: Gender;
   interested_in: InterestedIn;
   interests: string[];
+  activity_tags: string[];
+  active_intent: IntentType;
   email_notifications: boolean;
 }
 
@@ -55,15 +59,19 @@ export default function ProfileSetupPage(): React.ReactNode {
   const [error, setError] = useState<string>('');
   const [photoError, setPhotoError] = useState<string>('');
   const [interestError, setInterestError] = useState<string>('');
+  const [intentNotice, setIntentNotice] = useState<string>('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [form, setForm] = useState<ProfileFormState>({
     name: '',
     bio: '',
+    branch: '',
     year: '',
     gender: 'male',
     interested_in: 'everyone',
     interests: [],
+    activity_tags: [],
+    active_intent: 'dating',
     email_notifications: true,
   });
 
@@ -73,6 +81,26 @@ export default function ProfileSetupPage(): React.ReactNode {
 
   function handleLogout(): void {
     logout();
+  }
+
+  function handleIntentChange(newIntent: IntentType): void {
+    setForm((prev) => ({ ...prev, active_intent: newIntent }));
+    setIntentNotice(`Active mode: ${INTENT_CONFIGS[newIntent].label}`);
+    setTimeout(() => setIntentNotice(''), 3500);
+    profileApi.updateIntent(newIntent).catch(() => {});
+  }
+
+  function toggleActivityTag(tag: string): void {
+    setForm((prev) => {
+      const current = Array.isArray(prev.activity_tags) ? prev.activity_tags : [];
+      if (current.includes(tag)) {
+        return { ...prev, activity_tags: current.filter((t) => t !== tag) };
+      }
+      if (current.length >= 8) {
+        return prev;
+      }
+      return { ...prev, activity_tags: [...current, tag] };
+    });
   }
 
   useEffect(() => {
@@ -98,13 +126,23 @@ export default function ProfileSetupPage(): React.ReactNode {
           try { parsedPhotos = JSON.parse(p.photos); } catch { parsedPhotos = []; }
         }
 
+        let parsedActivityTags: string[] = [];
+        if (Array.isArray(p.activity_tags)) {
+          parsedActivityTags = p.activity_tags;
+        } else if (typeof p.activity_tags === 'string') {
+          try { parsedActivityTags = JSON.parse(p.activity_tags); } catch { parsedActivityTags = []; }
+        }
+
         setForm({
           name: p.name || '',
           bio: p.bio || '',
+          branch: p.branch || '',
           year: p.year ? String(p.year) : '',
           gender: (p.gender as Gender) || 'male',
           interested_in: (p.interested_in as InterestedIn) || 'everyone',
           interests: Array.isArray(parsedInterests) ? parsedInterests : [],
+          activity_tags: Array.isArray(parsedActivityTags) ? parsedActivityTags : [],
+          active_intent: (p.active_intent as IntentType) || 'dating',
           email_notifications: p.email_notifications !== 0 && (p.email_notifications as unknown) !== false,
         });
 
@@ -276,10 +314,13 @@ export default function ProfileSetupPage(): React.ReactNode {
       const payload = {
         name: form.name.trim(),
         bio: form.bio ? form.bio.trim() : null,
+        branch: form.branch ? form.branch.trim() : null,
         year: form.year ? parseInt(form.year, 10) : null,
         gender: form.gender,
         interested_in: form.interested_in,
         interests: Array.isArray(form.interests) ? form.interests : [],
+        activity_tags: Array.isArray(form.activity_tags) ? form.activity_tags : [],
+        active_intent: form.active_intent || 'dating',
         photos: finalPhotoUrls,
         email_notifications: form.email_notifications,
       };
@@ -393,19 +434,98 @@ export default function ProfileSetupPage(): React.ReactNode {
             />
           </label>
 
-          {/* Graduation Year */}
-          <label>
-            Graduation Year
-            <input 
-              name="year" 
-              type="number" 
-              value={form.year} 
-              onChange={handleChange} 
-              placeholder="e.g. 2026" 
-              min={2000} 
-              max={2035} 
-            />
-          </label>
+          {/* Course / Branch & Graduation Year */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+            <label>
+              Course / Branch
+              <input 
+                name="branch" 
+                value={form.branch} 
+                onChange={handleChange} 
+                placeholder="e.g. Computer Science" 
+                maxLength={100} 
+              />
+            </label>
+
+            <label>
+              Graduation Year
+              <input 
+                name="year" 
+                type="number" 
+                value={form.year} 
+                onChange={handleChange} 
+                placeholder="e.g. 2026" 
+                min={2000} 
+                max={2035} 
+              />
+            </label>
+          </div>
+
+          {/* Active Campus Intent (Single-Select Radio Cards) */}
+          <div style={{ margin: '1.2rem 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Active Campus Intent *
+              </span>
+              {intentNotice && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--primary-pink)', fontWeight: '600' }}>
+                  ✓ {intentNotice}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.3' }}>
+              Choose your single active mode. Your Discover feed, scoring logic, and like actions will tailor to this intent.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.55rem' }}>
+              {INTENTS.map((intentKey) => {
+                const cfg = INTENT_CONFIGS[intentKey];
+                const isSelected = form.active_intent === intentKey;
+                return (
+                  <button
+                    key={intentKey}
+                    type="button"
+                    onClick={() => handleIntentChange(intentKey)}
+                    style={{
+                      background: isSelected ? cfg.badgeBg : 'rgba(255,255,255,0.03)',
+                      border: `1.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: 'var(--radius-md)',
+                      padding: '0.75rem 0.6rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? `0 0 12px ${cfg.badgeBg}` : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '1.3rem' }}>{cfg.icon}</span>
+                      <div style={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: '50%',
+                        border: `2px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.3)'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        {isSelected && (
+                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.color }} />
+                        )}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '700', color: isSelected ? cfg.color : '#fff', marginBottom: '0.15rem' }}>
+                      {cfg.label}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.2' }}>
+                      {cfg.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Gender & Interested In */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
@@ -519,6 +639,105 @@ export default function ProfileSetupPage(): React.ReactNode {
                 ⚠️ {interestError}
               </p>
             )}
+          </div>
+
+          {/* Activity & Sports Tags Selector */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            marginTop: '0.6rem',
+            background: form.active_intent === 'activity' ? 'rgba(6, 214, 160, 0.06)' : 'transparent',
+            border: form.active_intent === 'activity' ? '1px solid rgba(6, 214, 160, 0.25)' : 'none',
+            padding: form.active_intent === 'activity' ? '0.8rem' : 0,
+            borderRadius: 'var(--radius-md)',
+            transition: 'all 0.2s ease',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                color: form.active_intent === 'activity' ? '#06d6a0' : 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Activity & Sports Tags {form.active_intent === 'activity' ? '• (Active Mode Priority ⚽)' : ''}
+              </span>
+              <span style={{
+                fontSize: '0.78rem',
+                fontWeight: '600',
+                color: form.activity_tags.length >= 2 ? '#06d6a0' : 'var(--text-muted)',
+                background: 'rgba(255,255,255,0.06)',
+                padding: '0.2rem 0.6rem',
+                borderRadius: 'var(--radius-full)'
+              }}>
+                {form.activity_tags.length} selected
+              </span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+              Pick activities, sports, and gym interests to match with campus workout and game partners.
+            </p>
+
+            {/* Picked Activity Pills */}
+            {form.activity_tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.2rem' }}>
+                {form.activity_tags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleActivityTag(tag)}
+                    style={{
+                      background: 'rgba(6, 214, 160, 0.22)',
+                      color: '#06d6a0',
+                      border: '1px solid rgba(6, 214, 160, 0.45)',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '0.35rem 0.75rem',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <span>{tag}</span>
+                    <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>×</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Activity Chip Grid */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.45rem',
+              marginTop: '0.3rem',
+            }}>
+              {PREDEFINED_ACTIVITY_TAGS.map((tag) => {
+                const isSelected = form.activity_tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleActivityTag(tag)}
+                    style={{
+                      background: isSelected ? 'rgba(6, 214, 160, 0.2)' : 'rgba(255,255,255,0.05)',
+                      color: isSelected ? '#06d6a0' : 'var(--text-muted)',
+                      border: isSelected ? '1px solid #06d6a0' : '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '0.35rem 0.75rem',
+                      fontSize: '0.8rem',
+                      fontWeight: isSelected ? '600' : '400',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {isSelected ? `✓ ${tag}` : tag}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Email Notifications Toggle */}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { discoverApi, swipeApi, profileApi, getPhotoUrl } from '../api';
 import DiscoverProfileModal from '../components/DiscoverProfileModal';
 import { Profile, SwipeAction } from '../types';
+import { INTENTS, IntentType, INTENT_CONFIGS, getIntentConfig } from '../constants/intents';
 
 interface DiscoverProfile extends Profile {
   compatibility_score?: number;
@@ -12,6 +13,11 @@ interface DiscoverProfile extends Profile {
     freshness: number;
   };
   shared_interests?: string[];
+  shared_activity_tags?: string[];
+  intent_score?: number;
+  is_fallback?: boolean;
+  can_super_like?: boolean;
+  super_like_reason?: string;
 }
 
 interface SuperLikeStatus {
@@ -34,7 +40,17 @@ export default function DiscoverPage(): React.ReactNode {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [swipeMsg, setSwipeMsg] = useState<string>('');
+  const [activeIntent, setActiveIntent] = useState<IntentType>('dating');
   const [myInterests, setMyInterests] = useState<string[]>([]);
+  const [myActivityTags, setMyActivityTags] = useState<string[]>([]);
+  const [myBranch, setMyBranch] = useState<string>('');
+  const [myYear, setMyYear] = useState<number | null>(null);
+
+  // Intent Switcher and confirmation modals
+  const [showIntentModal, setShowIntentModal] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [confirmPendingIntent, setConfirmPendingIntent] = useState<IntentType | null>(null);
+
   const [topCardPhotoIndex, setTopCardPhotoIndex] = useState<number>(0);
   const [detailProfile, setDetailProfile] = useState<DiscoverProfile | null>(null);
   const [expandedBioProfileId, setExpandedBioProfileId] = useState<string | null>(null);
@@ -61,6 +77,7 @@ export default function DiscoverPage(): React.ReactNode {
   const isDraggingRef = useRef<boolean>(false);
   const isFetchingMoreRef = useRef<boolean>(false);
   const hasMoreRef = useRef<boolean>(true);
+  const swipesInSessionRef = useRef<number>(0);
 
   // Initial load
   useEffect(() => {
@@ -88,7 +105,7 @@ export default function DiscoverPage(): React.ReactNode {
     async function fetchMore() {
       isFetchingMoreRef.current = true;
       try {
-        const res = await discoverApi.getDeck();
+        const res = await discoverApi.getDeck(activeIntent);
         const incoming = (res.data as any)?.profiles || res.data || [];
         if (!Array.isArray(incoming) || incoming.length === 0) {
           hasMoreRef.current = false;
@@ -139,16 +156,20 @@ export default function DiscoverPage(): React.ReactNode {
     return `${mins}m`;
   }
 
-  async function loadDeckAndProfile(): Promise<void> {
+  async function loadDeckAndProfile(intentOverride?: IntentType): Promise<void> {
     setLoading(true);
     setRefreshing(true);
     setError('');
     hasMoreRef.current = true;
     try {
+      const targetIntent = intentOverride || activeIntent;
       const [deckRes, myProfileRes] = await Promise.all([
-        discoverApi.getDeck(),
+        discoverApi.getDeck(targetIntent),
         profileApi.getMyProfile().catch(() => ({ data: null })),
       ]);
+
+      const resolvedDeckIntent = (deckRes.data as any)?.active_intent || targetIntent;
+      setActiveIntent(resolvedDeckIntent);
 
       const profilesList = (deckRes.data as any)?.profiles || deckRes.data || [];
       setDeck(Array.isArray(profilesList) ? profilesList : []);
@@ -159,17 +180,36 @@ export default function DiscoverPage(): React.ReactNode {
       }
 
       const p = myProfileRes?.data?.profile || (myProfileRes?.data as any);
-      if (p?.interests) {
-        let parsed: string[] = [];
-        if (Array.isArray(p.interests)) parsed = p.interests;
-        else if (typeof p.interests === 'string') {
-          try {
-            parsed = JSON.parse(p.interests);
-          } catch {
-            parsed = [];
+      if (p) {
+        if (p.interests) {
+          let parsed: string[] = [];
+          if (Array.isArray(p.interests)) parsed = p.interests;
+          else if (typeof p.interests === 'string') {
+            try {
+              parsed = JSON.parse(p.interests);
+            } catch {
+              parsed = [];
+            }
           }
+          setMyInterests(parsed);
         }
-        setMyInterests(parsed);
+        if (p.activity_tags) {
+          let parsedAct: string[] = [];
+          if (Array.isArray(p.activity_tags)) parsedAct = p.activity_tags;
+          else if (typeof p.activity_tags === 'string') {
+            try {
+              parsedAct = JSON.parse(p.activity_tags);
+            } catch {
+              parsedAct = [];
+            }
+          }
+          setMyActivityTags(parsedAct);
+        }
+        if (p.branch) setMyBranch(p.branch);
+        if (p.year) setMyYear(p.year);
+        if (!intentOverride && p.active_intent) {
+          setActiveIntent(p.active_intent);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Error loading discovery deck');
@@ -177,6 +217,29 @@ export default function DiscoverPage(): React.ReactNode {
       setLoading(false);
       setRefreshing(false);
     }
+  }
+
+  function handleRequestIntentSwitch(newIntent: IntentType): void {
+    if (newIntent === activeIntent) {
+      setShowIntentModal(false);
+      return;
+    }
+    // Confirm before switching if user has active swiping session in progress
+    if (swipesInSessionRef.current > 0 && deck.length > 0) {
+      setConfirmPendingIntent(newIntent);
+      setShowConfirmModal(true);
+      setShowIntentModal(false);
+    } else {
+      executeIntentSwitch(newIntent);
+      setShowIntentModal(false);
+    }
+  }
+
+  function executeIntentSwitch(newIntent: IntentType): void {
+    setActiveIntent(newIntent);
+    swipesInSessionRef.current = 0;
+    profileApi.updateIntent(newIntent).catch(() => {});
+    loadDeckAndProfile(newIntent);
   }
 
   // Perform card swipe animation and dispatch background API request
@@ -219,15 +282,19 @@ export default function DiscoverPage(): React.ReactNode {
       setDragOffset({ x: 0, y: 0 });
       setIsDragging(false);
 
-      // Async backend call (does not block immediate deck progression)
-      const apiAction = action === 'super_like' ? ('like' as SwipeAction) : (action as SwipeAction);
+      swipesInSessionRef.current += 1;
+
+      // Async backend call with active intent context
       swipeApi
-        .swipe(targetId, apiAction)
+        .swipe(targetId, action, activeIntent)
         .then((res) => {
+          const cfg = INTENT_CONFIGS[activeIntent];
           if (res.data?.matched) {
-            setSwipeMsg(`🎉 It's a Match with ${current.name || 'someone'}!`);
+            setSwipeMsg(`🎉 It's a Match with ${current.name || 'someone'} (${cfg.label})!`);
           } else if (action === 'super_like') {
-            setSwipeMsg(`⭐ Super Liked ${current.name || 'someone'}!`);
+            setSwipeMsg(`⭐ Sent ${cfg.superLikeLabel} to ${current.name || 'someone'}!`);
+          } else if (action === 'like') {
+            setSwipeMsg(`Sent ${cfg.likeLabel} to ${current.name || 'someone'}!`);
           }
         })
         .catch((err: any) => {
@@ -306,7 +373,11 @@ export default function DiscoverPage(): React.ReactNode {
       ? topProfile.shared_interests
       : topInterests.filter((tag) => myInterests.includes(tag));
 
-  const canSuperLike = sharedInterests.length >= 4;
+  const activeConfig = getIntentConfig(activeIntent);
+
+  const canSuperLike = topProfile?.can_super_like !== undefined
+    ? Boolean(topProfile.can_super_like)
+    : (sharedInterests.length >= 4);
 
   const handlePrevPhoto = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -535,7 +606,7 @@ export default function DiscoverPage(): React.ReactNode {
         {/* Right refresh button */}
         <div style={{ width: '42px', display: 'flex', justifyContent: 'flex-end' }}>
           <button
-            onClick={loadDeckAndProfile}
+            onClick={() => loadDeckAndProfile()}
             disabled={refreshing}
             title="Refresh deck"
             aria-label="Refresh deck"
@@ -579,12 +650,40 @@ export default function DiscoverPage(): React.ReactNode {
         </div>
       </div>
 
+      {/* Active Intent Header Pill */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.85rem' }}>
+        <button
+          type="button"
+          onClick={() => setShowIntentModal(true)}
+          style={{
+            background: activeConfig.badgeBg,
+            border: `1.5px solid ${activeConfig.badgeBorder}`,
+            color: '#fff',
+            padding: '0.35rem 1rem',
+            borderRadius: 'var(--radius-full)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            cursor: 'pointer',
+            fontSize: '0.82rem',
+            fontWeight: '600',
+            boxShadow: `0 2px 14px ${activeConfig.badgeBg}`,
+            transition: 'all 0.2s ease',
+          }}
+          title="Tap to switch campus matching intent"
+        >
+          <span style={{ fontSize: '1.05rem' }}>{activeConfig.icon}</span>
+          <span>Discovering: <strong style={{ color: activeConfig.color }}>{activeConfig.discoverPill}</strong></span>
+          <span style={{ fontSize: '0.72rem', opacity: 0.75, marginLeft: '0.2rem' }}>▾ Switch</span>
+        </button>
+      </div>
+
       {swipeMsg && <p className="success" style={{ marginBottom: '1rem', textAlign: 'center' }}>{swipeMsg}</p>}
       {error && <p className="error" style={{ marginBottom: '1rem' }}>{error}</p>}
 
       {loading && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ color: 'var(--text-muted)' }}>Finding campus matches…</p>
+          <p style={{ color: 'var(--text-muted)' }}>Finding campus matches for {activeConfig.label}…</p>
         </div>
       )}
 
@@ -605,23 +704,23 @@ export default function DiscoverPage(): React.ReactNode {
             <div className="beacon-pulse" />
             <div className="beacon-pulse" />
             <div className="beacon-core">
-              ✨
+              {activeConfig.icon}
             </div>
           </div>
           <h2 style={{ fontSize: '1.45rem', marginBottom: '0.6rem', color: '#fff' }}>
-            You've seen everyone for now
+            No more {activeConfig.discoverPill} for now
           </h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.75rem', lineHeight: '1.55' }}>
-            You're all caught up! Check back soon for new campus profiles, or refresh to see if new students joined.
+            You've reviewed all candidates currently in {activeConfig.label} mode. You can check back soon, refresh, or switch your intent to explore other campus modes!
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', maxWidth: '280px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxWidth: '280px', margin: '0 auto' }}>
             <button
               className="btn-primary"
-              onClick={loadDeckAndProfile}
+              onClick={() => loadDeckAndProfile()}
               disabled={refreshing}
               style={{
-                padding: '0.85rem 1.25rem',
-                fontSize: '0.92rem',
+                padding: '0.8rem 1.25rem',
+                fontSize: '0.9rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -629,9 +728,20 @@ export default function DiscoverPage(): React.ReactNode {
                 cursor: 'pointer',
               }}
             >
-              ↻ Check for New Profiles
+              ↻ Refresh {activeConfig.label} Deck
             </button>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', marginTop: '0.4rem' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowIntentModal(true)}
+              style={{
+                padding: '0.8rem 1.25rem',
+                fontSize: '0.88rem',
+              }}
+            >
+              🔄 Switch Matching Intent
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', marginTop: '0.3rem' }}>
               <Link to="/matches" style={{ fontSize: '0.84rem', color: 'var(--primary-pink)', fontWeight: 600 }}>
                 View Matches →
               </Link>
@@ -676,7 +786,7 @@ export default function DiscoverPage(): React.ReactNode {
                   className="swipe-stamp swipe-stamp-like"
                   style={{ opacity: flyingCard?.direction === 'like' ? 1 : likeStampOpacity }}
                 >
-                  LIKE
+                  {activeConfig.likeLabel.toUpperCase()}
                 </div>
                 <div
                   className="swipe-stamp swipe-stamp-pass"
@@ -689,7 +799,7 @@ export default function DiscoverPage(): React.ReactNode {
                     className="swipe-stamp swipe-stamp-super"
                     style={{ opacity: flyingCard?.direction === 'super_like' ? 1 : superStampOpacity }}
                   >
-                    SUPER LIKE
+                    {activeConfig.superLikeLabel.toUpperCase()}
                   </div>
                 )}
 
@@ -978,7 +1088,7 @@ export default function DiscoverPage(): React.ReactNode {
             )}
           </div>
 
-          {/* ACTION BUTTONS (Synchronized with Card Transition) */}
+          {/* ACTION BUTTONS (Intent-Aware) */}
           <div className="swipe-actions" style={{ flexDirection: 'column', alignItems: 'center', width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.25rem' }}>
               <button
@@ -986,6 +1096,7 @@ export default function DiscoverPage(): React.ReactNode {
                 onClick={() => performSwipe('pass')}
                 disabled={Boolean(flyingCard)}
                 aria-label="Pass"
+                title="Pass"
                 style={{ cursor: flyingCard ? 'default' : 'pointer' }}
               >
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -993,7 +1104,7 @@ export default function DiscoverPage(): React.ReactNode {
                 </svg>
               </button>
 
-              {/* Super Like Button — ONLY unlocked when 4+ interests match */}
+              {/* Super Like Button — Unlocked per Intent Rules */}
               {canSuperLike && (
                 <button
                   className="action-btn action-super-like"
@@ -1001,10 +1112,10 @@ export default function DiscoverPage(): React.ReactNode {
                   disabled={!superLikeStatus.available || Boolean(flyingCard)}
                   title={
                     superLikeStatus.available
-                      ? `⭐ Super Like (${sharedInterests.length} shared interests!)`
+                      ? `${activeConfig.superLikeLabel}`
                       : `Next Super Like available in ${formatCooldown(superLikeStatus.next_available_in_seconds)}`
                   }
-                  aria-label="Super Like"
+                  aria-label={activeConfig.superLikeLabel}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1013,34 +1124,223 @@ export default function DiscoverPage(): React.ReactNode {
                     cursor: superLikeStatus.available && !flyingCard ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  ⭐
+                  {activeConfig.superLikeIcon}
                 </button>
               )}
 
+              {/* Like / Wave / Study / Team Up / Connect Button */}
               <button
                 className="action-btn action-like"
                 onClick={() => performSwipe('like')}
                 disabled={Boolean(flyingCard)}
-                aria-label="Like"
-                style={{ cursor: flyingCard ? 'default' : 'pointer' }}
+                aria-label={activeConfig.likeLabel}
+                title={activeConfig.likeLabel}
+                style={{
+                  cursor: flyingCard ? 'default' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.5rem',
+                  background: `linear-gradient(135deg, ${activeConfig.color} 0%, var(--primary-pink) 100%)`,
+                }}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-                </svg>
+                {activeIntent === 'dating' ? (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                  </svg>
+                ) : (
+                  <span>{activeConfig.likeIcon}</span>
+                )}
               </button>
             </div>
 
-            {/* Super Like Status & Cooldown Notice */}
+            {/* Super Like Status Notice */}
             {canSuperLike && !superLikeStatus.available && superLikeStatus.next_available_in_seconds > 0 && (
               <span style={{ fontSize: '0.75rem', color: '#ffd700', marginTop: '0.4rem', fontWeight: '600' }}>
-                Next Super Like available in {formatCooldown(superLikeStatus.next_available_in_seconds)}
+                Next {activeConfig.superLikeLabel} available in {formatCooldown(superLikeStatus.next_available_in_seconds)}
               </span>
             )}
             {canSuperLike && superLikeStatus.available && (
               <span style={{ fontSize: '0.74rem', color: '#ffd700', marginTop: '0.4rem', fontWeight: '700', letterSpacing: '0.02em' }}>
-                ⭐ Super Like Unlocked ({sharedInterests.length} shared interests!)
+                ⭐ {activeConfig.superLikeLabel} Unlocked!
               </span>
             )}
+            {!canSuperLike && (
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem', textAlign: 'center' }}>
+                {topProfile?.super_like_reason || activeConfig.superLikeUnlockHint}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* INTENT SWITCHER MODAL */}
+      {showIntentModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 6, 12, 0.85)',
+            backdropFilter: 'blur(12px)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowIntentModal(false)}
+        >
+          <div
+            className="glass-card"
+            style={{
+              width: '100%',
+              maxWidth: '420px',
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              background: '#111420',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', fontWeight: 700 }}>
+                Campus Discovery Mode
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowIntentModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '1.2rem',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.1rem', lineHeight: '1.4' }}>
+              Switching your mode adjusts your Discover deck ranking and like actions. Your past matches retain their original intent snapshot.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {INTENTS.map((intentKey) => {
+                const cfg = INTENT_CONFIGS[intentKey];
+                const isCurrent = activeIntent === intentKey;
+                return (
+                  <button
+                    key={intentKey}
+                    type="button"
+                    onClick={() => handleRequestIntentSwitch(intentKey)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.9rem',
+                      padding: '0.75rem 0.9rem',
+                      borderRadius: 'var(--radius-md)',
+                      background: isCurrent ? cfg.badgeBg : 'rgba(255,255,255,0.04)',
+                      border: `1.5px solid ${isCurrent ? cfg.color : 'rgba(255,255,255,0.08)'}`,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.5rem' }}>{cfg.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: isCurrent ? cfg.color : '#fff' }}>
+                          {cfg.label}
+                        </span>
+                        {isCurrent && (
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            color: cfg.color,
+                            background: cfg.badgeBg,
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: 'var(--radius-full)',
+                            border: `1px solid ${cfg.color}`,
+                          }}>
+                            ACTIVE
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.15rem' }}>
+                        {cfg.description}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION BEFORE SWITCHING INTENT MID-SWIPE */}
+      {showConfirmModal && confirmPendingIntent && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 6, 12, 0.9)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 1200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowConfirmModal(false)}
+        >
+          <div
+            className="glass-card"
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              background: '#131724',
+              border: '1px solid rgba(255,255,255,0.2)',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '2.4rem', marginBottom: '0.6rem' }}>
+              {INTENT_CONFIGS[confirmPendingIntent].icon}
+            </div>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', color: '#fff', fontWeight: 700 }}>
+              Switch to {INTENT_CONFIGS[confirmPendingIntent].label} Mode?
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.4rem', lineHeight: '1.45' }}>
+              You have an active Discover session in progress ({swipesInSessionRef.current} profiles reviewed). Switching mode now will refresh your deck with students looking for <strong>{INTENT_CONFIGS[confirmPendingIntent].label}</strong>.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowConfirmModal(false)}
+                style={{ flex: 1, padding: '0.65rem' }}
+              >
+                Keep Current
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  executeIntentSwitch(confirmPendingIntent);
+                }}
+                style={{
+                  flex: 1.2,
+                  padding: '0.65rem',
+                  background: `linear-gradient(135deg, ${INTENT_CONFIGS[confirmPendingIntent].color} 0%, var(--primary-pink) 100%)`,
+                }}
+              >
+                Switch Mode
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1050,6 +1350,8 @@ export default function DiscoverPage(): React.ReactNode {
         <DiscoverProfileModal
           profile={detailProfile}
           myInterests={myInterests}
+          myActivityTags={myActivityTags}
+          intent={activeIntent}
           canSuperLike={canSuperLike}
           superLikeAvailable={superLikeStatus.available}
           superLikeCooldownText={formatCooldown(superLikeStatus.next_available_in_seconds)}

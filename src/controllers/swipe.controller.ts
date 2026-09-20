@@ -2,17 +2,19 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import db from '../config/db';
 import { AppError } from '../middleware/errorHandler';
-import { updateSwipePreferences } from '../services/scoring.service';
+import { updateSwipePreferences, canSuperLike, parseJsonArray } from '../services/scoring.service';
 import { createLikeNotification, createSuperLikeNotification } from '../services/notification.service';
+import { IntentType, INTENTS } from '../constants/intent.constants';
 
 /**
  * POST /api/swipe
- * Record a like or pass. If mutual like exists, create a match.
+ * Record a like, pass, or super_like with intent context.
+ * If mutual like exists, create a match stamped with the active intent snapshot.
  */
 export async function recordSwipe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const swiperId = req.user!.id;
-    const { swiped_id, action } = req.body;
+    const { swiped_id, action, intent } = req.body;
 
     // Can't swipe on yourself
     if (swiperId === swiped_id) {
@@ -33,38 +35,55 @@ export async function recordSwipe(req: Request, res: Response, next: NextFunctio
       throw new AppError('This user is no longer available.', 400);
     }
 
-    let sharedInterests: string[] = [];
+    // Determine swipe intent: either provided in body or from swiper's active_intent
+    const { rows: swiperUserRows } = await db.query<{ active_intent?: string }>(
+      `SELECT active_intent FROM users WHERE id = $1`,
+      [swiperId]
+    );
+    const resolvedIntent: IntentType = (
+      intent && INTENTS.includes(intent as IntentType)
+        ? intent
+        : (swiperUserRows[0]?.active_intent && INTENTS.includes(swiperUserRows[0].active_intent as IntentType)
+            ? swiperUserRows[0].active_intent
+            : 'dating')
+    ) as IntentType;
+
+    // Fetch both users' profiles
+    const { rows: swiperProf } = await db.query<{
+      interests: string | string[];
+      activity_tags?: string | string[];
+      branch?: string | null;
+      year?: number | null;
+    }>(
+      `SELECT interests, activity_tags, branch, year FROM profiles WHERE user_id = $1`,
+      [swiperId]
+    );
+    const { rows: swipedProf } = await db.query<{
+      interests: string | string[];
+      activity_tags?: string | string[];
+      branch?: string | null;
+      year?: number | null;
+    }>(
+      `SELECT interests, activity_tags, branch, year FROM profiles WHERE user_id = $1`,
+      [swiped_id]
+    );
+
+    const swiperInterests = parseJsonArray(swiperProf[0]?.interests);
+    const swipedInterests = parseJsonArray(swipedProf[0]?.interests);
+    const sharedInterests = swiperInterests.filter((i) => swipedInterests.includes(i));
+
     const isSuperLike = action === 'super_like';
 
     if (isSuperLike) {
-      // 1. Fetch both users' profiles to compute shared interests
-      const { rows: swiperProf } = await db.query<{ interests: string | string[] }>(
-        `SELECT interests FROM profiles WHERE user_id = $1`, [swiperId]
+      // 1. Enforce intent-specific Super Like unlock condition
+      const gate = canSuperLike(
+        resolvedIntent,
+        swiperProf[0] || {},
+        swipedProf[0] || {}
       );
-      const { rows: swipedProf } = await db.query<{ interests: string | string[] }>(
-        `SELECT interests FROM profiles WHERE user_id = $1`, [swiped_id]
-      );
 
-      let swiperInterests: string[] = [];
-      let swipedInterests: string[] = [];
-      try {
-        swiperInterests = typeof swiperProf[0]?.interests === 'string'
-          ? JSON.parse(swiperProf[0].interests)
-          : swiperProf[0]?.interests || [];
-      } catch { swiperInterests = []; }
-
-      try {
-        swipedInterests = typeof swipedProf[0]?.interests === 'string'
-          ? JSON.parse(swipedProf[0].interests)
-          : swipedProf[0]?.interests || [];
-      } catch { swipedInterests = []; }
-
-      sharedInterests = Array.isArray(swiperInterests) && Array.isArray(swipedInterests)
-        ? swiperInterests.filter((i) => swipedInterests.includes(i))
-        : [];
-
-      if (sharedInterests.length < 4) {
-        throw new AppError('Super Like is only unlocked when you share 4 or more interests.', 400);
+      if (!gate.allowed) {
+        throw new AppError(gate.reason || 'Super Like is not unlocked for this profile.', 400);
       }
 
       // 2. Enforce 1 Super Like per 24-hour rolling limit
@@ -106,24 +125,25 @@ export async function recordSwipe(req: Request, res: Response, next: NextFunctio
         isActionChange = true;
         await db.query(
           `UPDATE swipes
-           SET action = $1, is_super_like = $2, shared_interests = $3, shared_interests_count = $4, created_at = datetime('now')
-           WHERE id = $5`,
-          [action, isSuperLike ? 1 : 0, JSON.stringify(sharedInterests), sharedInterests.length, existingSwipe[0].id]
+           SET action = $1, is_super_like = $2, shared_interests = $3, shared_interests_count = $4, intent = $5, created_at = datetime('now')
+           WHERE id = $6`,
+          [action, isSuperLike ? 1 : 0, JSON.stringify(sharedInterests), sharedInterests.length, resolvedIntent, existingSwipe[0].id]
         );
       }
     } else {
       isNewSwipe = true;
       const swipeId = crypto.randomUUID();
       await db.query(
-        `INSERT INTO swipes (id, swiper_id, swiped_id, action, is_super_like, shared_interests, shared_interests_count, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, datetime('now'))
+        `INSERT INTO swipes (id, swiper_id, swiped_id, action, is_super_like, shared_interests, shared_interests_count, intent, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, datetime('now'))
          ON CONFLICT (swiper_id, swiped_id) DO UPDATE SET
            action = excluded.action,
            is_super_like = excluded.is_super_like,
            shared_interests = excluded.shared_interests,
            shared_interests_count = excluded.shared_interests_count,
+           intent = excluded.intent,
            created_at = datetime('now')`,
-        [swipeId, swiperId, swiped_id, action, isSuperLike ? 1 : 0, JSON.stringify(sharedInterests), sharedInterests.length]
+        [swipeId, swiperId, swiped_id, action, isSuperLike ? 1 : 0, JSON.stringify(sharedInterests), sharedInterests.length, resolvedIntent]
       );
     }
 
@@ -136,17 +156,8 @@ export async function recordSwipe(req: Request, res: Response, next: NextFunctio
     // Behavioral learning
     if (isNewSwipe || isActionChange) {
       try {
-        const { rows: swipedProfile } = await db.query<{ interests: string | string[] }>(
-          `SELECT interests FROM profiles WHERE user_id = $1`, [swiped_id]
-        );
-        if (swipedProfile.length > 0) {
-          let interests: string[] = [];
-          try {
-            interests = typeof swipedProfile[0].interests === 'string'
-              ? JSON.parse(swipedProfile[0].interests)
-              : swipedProfile[0].interests || [];
-          } catch { interests = []; }
-          updateSwipePreferences(swiperId, interests, isSuperLike ? 'like' : action).catch(() => {});
+        if (swipedProf.length > 0) {
+          updateSwipePreferences(swiperId, swipedInterests, isSuperLike ? 'like' : action).catch(() => {});
         }
       } catch { /* non-critical */ }
     }
@@ -159,8 +170,8 @@ export async function recordSwipe(req: Request, res: Response, next: NextFunctio
         ? [swiperId, swiped_id]
         : [swiped_id, swiperId];
 
-      const { rows: existingMatch } = await db.query<{ id: string }>(
-        `SELECT id FROM matches WHERE user1_id = $1 AND user2_id = $2`,
+      const { rows: existingMatch } = await db.query<{ id: string; intent?: string }>(
+        `SELECT id, intent FROM matches WHERE user1_id = $1 AND user2_id = $2`,
         [user1, user2]
       );
 
@@ -168,19 +179,22 @@ export async function recordSwipe(req: Request, res: Response, next: NextFunctio
         matched = true;
         matchId = existingMatch[0].id;
       } else {
-        const { rows: mutualLike } = await db.query<{ id: string }>(
-          `SELECT id FROM swipes WHERE swiper_id = $1 AND swiped_id = $2 AND action IN ('like', 'super_like')`,
+        const { rows: mutualLike } = await db.query<{ id: string; intent?: string }>(
+          `SELECT id, intent FROM swipes WHERE swiper_id = $1 AND swiped_id = $2 AND action IN ('like', 'super_like')`,
           [swiped_id, swiperId]
         );
 
         if (mutualLike.length > 0) {
           const newMatchId = crypto.randomUUID();
+          // Store snapshot value of the intent active when the match occurred
+          const matchIntent = resolvedIntent || mutualLike[0]?.intent || 'dating';
+
           const { rows: matchRows } = await db.query<{ id: string }>(
-            `INSERT INTO matches (id, user1_id, user2_id)
-             VALUES ($1, $2, $3)
+            `INSERT INTO matches (id, user1_id, user2_id, intent)
+             VALUES ($1, $2, $3, $4)
              ON CONFLICT (user1_id, user2_id) DO NOTHING
              RETURNING id`,
-            [newMatchId, user1, user2]
+            [newMatchId, user1, user2, matchIntent]
           );
 
           if (matchRows.length > 0) {
@@ -214,6 +228,7 @@ export async function recordSwipe(req: Request, res: Response, next: NextFunctio
       success: true,
       data: {
         action,
+        intent: resolvedIntent,
         matched,
         match_id: matchId,
         super_like_available: isSuperLike ? false : undefined,

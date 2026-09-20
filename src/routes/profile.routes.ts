@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { createProfileSchema, presignedUrlSchema } from '../validators/profile.schema';
+import { createProfileSchema, updateIntentSchema, presignedUrlSchema } from '../validators/profile.schema';
 import {
   createOrUpdateProfile,
+  updateActiveIntent,
   getMyProfile,
   getProfileById,
   getUploadUrl,
@@ -17,6 +18,9 @@ router.use(authenticate);
 
 // POST /api/profile — create or update profile
 router.post('/', validate(createProfileSchema), createOrUpdateProfile);
+
+// PATCH /api/profile/intent — update user active intent
+router.patch('/intent', validate(updateIntentSchema), updateActiveIntent);
 
 // GET /api/profile — get own profile
 router.get('/', getMyProfile);

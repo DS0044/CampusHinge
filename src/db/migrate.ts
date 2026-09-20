@@ -18,6 +18,7 @@ export function initTables(): void {
       last_super_like_at TEXT,
       accepted_terms_at TEXT,
       terms_version TEXT DEFAULT '1.0',
+      active_intent TEXT DEFAULT 'dating',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -42,6 +43,7 @@ export function initTables(): void {
       gender TEXT NOT NULL,
       interested_in TEXT NOT NULL,
       interests TEXT DEFAULT '[]',
+      activity_tags TEXT DEFAULT '[]',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -55,6 +57,7 @@ export function initTables(): void {
       is_super_like INTEGER DEFAULT 0,
       shared_interests TEXT DEFAULT '[]',
       shared_interests_count INTEGER DEFAULT 0,
+      intent TEXT DEFAULT 'dating',
       created_at TEXT DEFAULT (datetime('now')),
       UNIQUE(swiper_id, swiped_id),
       FOREIGN KEY (swiper_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -65,6 +68,7 @@ export function initTables(): void {
       id TEXT PRIMARY KEY,
       user1_id TEXT NOT NULL,
       user2_id TEXT NOT NULL,
+      intent TEXT DEFAULT 'dating',
       is_unlocked INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       UNIQUE(user1_id, user2_id),
@@ -158,6 +162,10 @@ export function initTables(): void {
     `ALTER TABLE swipes ADD COLUMN is_super_like INTEGER DEFAULT 0`,
     `ALTER TABLE swipes ADD COLUMN shared_interests TEXT DEFAULT '[]'`,
     `ALTER TABLE swipes ADD COLUMN shared_interests_count INTEGER DEFAULT 0`,
+    `ALTER TABLE swipes ADD COLUMN intent TEXT DEFAULT 'dating'`,
+    `ALTER TABLE matches ADD COLUMN intent TEXT DEFAULT 'dating'`,
+    `ALTER TABLE users ADD COLUMN active_intent TEXT DEFAULT 'dating'`,
+    `ALTER TABLE profiles ADD COLUMN activity_tags TEXT DEFAULT '[]'`,
     `ALTER TABLE notifications ADD COLUMN metadata TEXT`,
   ];
 

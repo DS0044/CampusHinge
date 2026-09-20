@@ -329,11 +329,182 @@ export async function computeCompatibilityScore(
   };
 }
 
+import { CAREER_INTERESTS, areCoursesCompatible } from '../constants/intent.constants';
+
+export function parseJsonArray(val: unknown): string[] {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/**
+ * Validates whether a Super Like is unlocked based on active intent criteria.
+ */
+export function canSuperLike(
+  intent: string,
+  swiperProfile: { interests?: unknown; activity_tags?: unknown; branch?: string | null; year?: number | null },
+  swipedProfile: { interests?: unknown; activity_tags?: unknown; branch?: string | null; year?: number | null }
+): { allowed: boolean; reason?: string; sharedCount?: number } {
+  const swiperInterests = parseJsonArray(swiperProfile.interests);
+  const swipedInterests = parseJsonArray(swipedProfile.interests);
+  const sharedInterests = swiperInterests.filter((t) => swipedInterests.includes(t));
+
+  const swiperActivity = parseJsonArray(swiperProfile.activity_tags);
+  const swipedActivity = parseJsonArray(swipedProfile.activity_tags);
+  const sharedActivity = swiperActivity.filter((t) => swipedActivity.includes(t));
+
+  switch (intent) {
+    case 'friendship':
+    case 'dating': {
+      const allowed = sharedInterests.length >= 4;
+      return {
+        allowed,
+        sharedCount: sharedInterests.length,
+        reason: allowed ? undefined : 'Super Like is only unlocked when you share 4 or more interests.',
+      };
+    }
+
+    case 'study': {
+      const branchA = (swiperProfile.branch || '').trim();
+      const branchB = (swipedProfile.branch || '').trim();
+      const compatibleCourse = areCoursesCompatible(branchA, branchB);
+
+      const yearA = swiperProfile.year ? Number(swiperProfile.year) : null;
+      const yearB = swipedProfile.year ? Number(swipedProfile.year) : null;
+      const adjacentYear = yearA && yearB ? Math.abs(yearA - yearB) <= 1 : true;
+
+      const allowed = compatibleCourse && adjacentYear;
+      return {
+        allowed,
+        reason: allowed
+          ? undefined
+          : 'Study Partner Super Like is only unlocked for students with the same/compatible course and same or adjacent graduation year.',
+      };
+    }
+
+    case 'activity': {
+      const allowed = sharedActivity.length >= 2;
+      return {
+        allowed,
+        sharedCount: sharedActivity.length,
+        reason: allowed
+          ? undefined
+          : 'Activity Super Like is only unlocked when you share 2 or more activity tags.',
+      };
+    }
+
+    case 'networking': {
+      const branchA = (swiperProfile.branch || '').trim();
+      const branchB = (swipedProfile.branch || '').trim();
+      const isDifferentBranch = Boolean(branchA && branchB && branchA.toLowerCase() !== branchB.toLowerCase());
+
+      const sharedCareer = sharedInterests.filter((t) =>
+        CAREER_INTERESTS.some((c) => c.toLowerCase() === t.toLowerCase())
+      );
+
+      const allowed = isDifferentBranch || sharedCareer.length >= 1;
+      return {
+        allowed,
+        sharedCount: sharedCareer.length,
+        reason: allowed
+          ? undefined
+          : 'Networking Super Like is unlocked for cross-branch connections or shared career-oriented interests.',
+      };
+    }
+
+    default: {
+      const allowed = sharedInterests.length >= 4;
+      return {
+        allowed,
+        sharedCount: sharedInterests.length,
+        reason: allowed ? undefined : 'Super Like is only unlocked when you share 4 or more interests.',
+      };
+    }
+  }
+}
+
+/**
+ * Intent-aware ranking score computation.
+ */
+export function scoreCandidateForIntent(
+  intent: string,
+  myProfile: { interests?: unknown; activity_tags?: unknown; branch?: string | null; year?: number | null },
+  candidate: { interests?: unknown; activity_tags?: unknown; branch?: string | null; year?: number | null; compatibility_score?: number }
+): number {
+  const myInterests = parseJsonArray(myProfile.interests);
+  const theirInterests = parseJsonArray(candidate.interests);
+  const sharedInterests = myInterests.filter((t) => theirInterests.includes(t));
+
+  const myYear = myProfile.year ? Number(myProfile.year) : null;
+  const theirYear = candidate.year ? Number(candidate.year) : null;
+  const yearDiff = myYear && theirYear ? Math.abs(myYear - theirYear) : 4;
+  const yearProximityScore = Math.max(0, 10 - yearDiff) * 10; // 0–100
+
+  const myBranch = (myProfile.branch || '').trim();
+  const theirBranch = (candidate.branch || '').trim();
+
+  switch (intent) {
+    case 'friendship': {
+      // Shared interests count descending, then year proximity
+      const interestPts = sharedInterests.length * 20;
+      const yearPts = Math.round(yearProximityScore * 0.4);
+      return interestPts + yearPts;
+    }
+
+    case 'study': {
+      // Year proximity first, course compatibility, then shared interests as tiebreaker
+      const courseBonus = areCoursesCompatible(myBranch, theirBranch) ? 40 : 0;
+      const yearPts = Math.round(yearProximityScore * 0.5);
+      const interestPts = sharedInterests.length * 5;
+      return courseBonus + yearPts + interestPts;
+    }
+
+    case 'activity': {
+      // Shared activity tags count (descending), then shared interests
+      const myActivity = parseJsonArray(myProfile.activity_tags);
+      const theirActivity = parseJsonArray(candidate.activity_tags);
+      const sharedActivity = myActivity.filter((t) => theirActivity.includes(t));
+      const activityPts = sharedActivity.length * 30;
+      const interestPts = sharedInterests.length * 3;
+      return activityPts + interestPts;
+    }
+
+    case 'networking': {
+      // Branch diversity (different branch > same branch), then shared career-oriented interests
+      let diversityPts = 20;
+      if (myBranch && theirBranch) {
+        diversityPts = myBranch.toLowerCase() !== theirBranch.toLowerCase() ? 50 : 15;
+      }
+      const sharedCareer = sharedInterests.filter((t) =>
+        CAREER_INTERESTS.some((c) => c.toLowerCase() === t.toLowerCase())
+      );
+      const careerPts = sharedCareer.length * 25;
+      const generalInterestPts = sharedInterests.length * 2;
+      return diversityPts + careerPts + generalInterestPts;
+    }
+
+    case 'dating':
+    default: {
+      return candidate.compatibility_score || sharedInterests.length * 10;
+    }
+  }
+}
+
 export default {
   computeCompatibilityScore,
   computeInterestScore,
   computeBehavioralScore,
   computeFreshnessScore,
+  scoreCandidateForIntent,
+  canSuperLike,
+  parseJsonArray,
   updateSwipePreferences,
   refreshTagPopularity,
 };
@@ -342,6 +513,10 @@ module.exports = {
   computeInterestScore,
   computeBehavioralScore,
   computeFreshnessScore,
+  scoreCandidateForIntent,
+  canSuperLike,
+  parseJsonArray,
   updateSwipePreferences,
   refreshTagPopularity,
 };
+

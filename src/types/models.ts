@@ -10,6 +10,7 @@ export interface DbUser {
   last_active?: string | null;
   accepted_terms_at?: string | null;
   terms_version?: string | null;
+  active_intent?: 'dating' | 'friendship' | 'study' | 'activity' | 'networking' | string;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export interface DbProfile {
   gender: string;
   interested_in: string;
   interests: string; // JSON string in DB
+  activity_tags?: string; // JSON string in DB
   score?: number;
   is_looped?: number;
   created_at: string;
@@ -35,6 +37,7 @@ export interface DbMatch {
   id: string;
   user1_id: string;
   user2_id: string;
+  intent?: string;
   is_unlocked: number | boolean;
   created_at: string;
 }
@@ -62,5 +65,6 @@ export interface DbSwipe {
   swiper_id: string;
   swiped_id: string;
   action: 'like' | 'pass' | 'super_like' | string;
+  intent?: string;
   created_at: string;
 }
