@@ -61,7 +61,7 @@ export function logout(): void {
   // Clean up the singleton socket connection
   try {
     import('./socketManager').then(({ destroySocket }) => destroySocket()).catch(() => {});
-  } catch (e) {
+  } catch {
     // socketManager may not be loaded in all contexts
   }
   try {
@@ -91,7 +91,7 @@ async function request<T = any>(method: string, path: string, body: unknown = nu
       try {
         localStorage.clear();
         sessionStorage.clear();
-      } catch (e) {}
+      } catch {}
       const publicPaths = ['/login', '/signup', '/verify-otp', '/terms', '/privacy'];
       if (!publicPaths.includes(window.location.pathname)) {
         window.location.replace('/login');

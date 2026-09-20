@@ -1,107 +1,83 @@
+# CampusHinge — Campus-Verified Dating & Matching Platform
 
-# CampusApp — Campus-Verified Dating Platform
+A modern dating and social discovery platform for closed campus communities, verified via college email domains.
 
-A dating/matching web app for a closed campus community, verified via college email domain. Built as an MVP for ~500–600 users.
+---
 
-## Tech Stack
+## 📁 Repository Structure
 
-- **Backend:** Node.js + Express (REST API)
-- **Database:** PostgreSQL 16
-- **Real-time:** Socket.io
-- **File Storage:** AWS S3 (presigned URLs)
-- **Email:** Nodemailer (swappable to AWS SES)
-- **Payments:** Razorpay Subscriptions
-- **Auth:** OTP-based + JWT sessions
+The codebase is organized into three distinct, dedicated applications:
 
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) v18+
-- [Docker](https://www.docker.com/) (for local PostgreSQL)
-
-## Getting Started
-
-### 1. Clone & install dependencies
-
-```bash
-npm install
+```
+CampusHinge/
+├── backend/          # Node.js + Express REST API, SQLite DB, and Cloudflare Worker
+├── frontend/         # Student web application (React + Vite, Port 5173)
+├── admin-panel/      # Safety & moderation portal (React + Vite, Port 5174)
+└── package.json      # Monorepo root orchestration scripts
 ```
 
-### 2. Environment variables
+---
 
-Copy the example env file and fill in your values:
+## 🚀 Quick Start
+
+### 1. Run Development Servers
+
+From the root directory, you can start any of the applications:
 
 ```bash
-cp .env.example .env
+# Start backend API (Port 3000)
+npm run dev:backend
+
+# Start student frontend app (Port 5173)
+npm run dev:frontend
+
+# Start admin moderation panel (Port 5174)
+npm run dev:admin
 ```
 
-Key variables to set:
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret key for JWT signing |
-| `ALLOWED_EMAIL_DOMAINS` | Comma-separated list of allowed email domains |
-| `SMTP_*` | SMTP credentials for sending OTP emails |
-| `AWS_*` / `S3_*` | AWS credentials and S3 bucket for photo uploads |
-| `RAZORPAY_*` | Razorpay API keys (can be left as placeholders for dev) |
-
-### 3. Start PostgreSQL (Docker)
+### 2. Build Production Bundles
 
 ```bash
-docker-compose up -d
+# Build both frontend and admin-panel
+npm run build
+
+# Or build individually
+npm run build:frontend
+npm run build:admin
 ```
 
-This starts a Postgres 16 container on port 5432 and auto-runs the initial migration.
-
-If the container already exists or you need to re-run migrations manually:
+### 3. Run Automated Tests
 
 ```bash
+# Runs all 53 backend integration and validation tests
+npm test
+```
+
+### 4. Database Utilities
+
+```bash
+# Initialize SQLite database schema
 npm run migrate
+
+# Clear all database tables and uploaded files
+npm run db:clear
 ```
 
-### 4. Start the dev server
+---
 
-```bash
-npm run dev
-```
+## 🏛️ Application Roles
 
-The API will be available at `http://localhost:3000`. Verify with:
+### 1. `backend/`
+- **REST API Entry**: `backend/src/index.js`
+- **Database**: Local SQLite (`campusapp.db` via `better-sqlite3`) and Cloudflare D1 for serverless
+- **Real-Time**: Socket.io for chat and instant notifications
+- **Worker**: Cloudflare Workers Hono API in `backend/worker/`
+- **Tests**: 53 integration tests in `backend/tests/`
 
-```bash
-curl http://localhost:3000/health
-```
+### 2. `frontend/`
+- **Student App**: Discovery card deck, mutual matching, real-time messaging, profile setup, and notifications.
+- **Port**: `http://localhost:5173`
 
-## Project Structure
-
-```
-src/
-├── index.js              # Express app + Socket.io entry point
-├── config/               # Environment, DB pool, domain allowlist
-├── middleware/            # Auth, admin, validation, rate limiting, errors
-├── routes/               # Express route definitions
-├── controllers/          # Route handler functions
-├── services/             # Business logic (OTP, email, S3, payments, socket)
-├── validators/           # Zod schemas for request validation
-└── db/
-    ├── migrate.js        # Migration runner
-    └── migrations/       # SQL migration files
-```
-
-## API Endpoints
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/health` | — | Health check |
-| `POST` | `/api/auth/signup` | — | Register with campus email |
-| `POST` | `/api/auth/verify-otp` | — | Verify OTP and receive JWT |
-| `POST` | `/api/profile` | JWT | Create/update profile |
-| `GET` | `/api/profile` | JWT | Get own profile |
-| `GET` | `/api/discover` | JWT | Swipeable discovery deck |
-| `POST` | `/api/swipe` | JWT | Like or pass on a profile |
-| `GET` | `/api/matches` | JWT | List matches |
-| `GET` | `/api/messages/:matchId` | JWT | Message history |
-| `POST` | `/api/messages/:matchId` | JWT | Send message (paywall enforced) |
-| `POST` | `/api/subscribe` | JWT | Create subscription |
-| `POST` | `/api/report` | JWT | Report a user |
-| `POST` | `/api/block` | JWT | Block a user |
-| `GET` | `/api/admin/reports` | Admin | View reports |
-| `POST` | `/api/admin/ban/:userId` | Admin | Ban a user |
+### 3. `admin-panel/`
+- **Moderator Portal**: Safety dashboard, user directory, student profile inspection, one-click ban/unban, and reports queue resolution.
+- **Port**: `http://localhost:5174`

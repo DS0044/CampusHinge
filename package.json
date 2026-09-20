@@ -1,12 +1,17 @@
 {
-  "name": "campusapp",
+  "name": "campushinge-monorepo",
   "version": "1.0.0",
-  "description": "Campus-verified dating and matching platform — MVP",
+  "private": true,
+  "description": "CampusHinge — Campus-verified dating & matching platform",
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:admin": "npm run dev --prefix admin-panel",
     "start": "tsx src/index.ts",
     "build": "npm run build --prefix frontend && tsc",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:admin": "npm run build --prefix admin-panel",
     "build:backend": "tsc",
     "deploy:worker": "npm run deploy --prefix worker",
     "migrate": "tsx src/db/migrate.ts",
@@ -14,7 +19,7 @@
     "users": "tsx scripts/db-users.ts list",
     "users:delete": "tsx scripts/db-users.ts delete",
     "db:clear": "tsx src/db/clear.ts",
-    "test": "node --import tsx --test",
+    "test": "node --import tsx --test tests/auth.validator.test.js tests/pass_exclusion.test.js tests/resend_otp.test.js tests/super_like.test.js tests/terms.test.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],

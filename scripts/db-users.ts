@@ -12,7 +12,10 @@ import path from 'path';
 const action = process.argv[2] || 'list';
 const target = process.argv[3];
 
-const workerDir = path.resolve(__dirname, '..', 'worker');
+const fs = require('fs');
+const workerDir = fs.existsSync(path.resolve(__dirname, '..', 'backend', 'worker'))
+  ? path.resolve(__dirname, '..', 'backend', 'worker')
+  : path.resolve(__dirname, '..', 'worker');
 
 interface D1UserRow {
   id: string;
