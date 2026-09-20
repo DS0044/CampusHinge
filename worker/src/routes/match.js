@@ -15,7 +15,7 @@ match.get('/', async (c) => {
 
   const { rows: matches } = await query(db,
     `SELECT
-       m.id AS match_id, m.is_unlocked, m.created_at AS matched_at,
+       m.id AS match_id, m.is_unlocked, COALESCE(m.intent, 'dating') AS intent, m.created_at AS matched_at,
        p.user_id, p.name, p.photos, p.bio,
        (SELECT content FROM messages WHERE match_id = m.id ORDER BY created_at DESC LIMIT 1) AS last_message,
        (SELECT created_at FROM messages WHERE match_id = m.id ORDER BY created_at DESC LIMIT 1) AS last_message_at

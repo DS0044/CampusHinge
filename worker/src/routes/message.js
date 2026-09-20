@@ -65,6 +65,7 @@ message.get('/:matchId', async (c) => {
         partner_id: details.partner_id || null,
         partner_name: details.partner_name || 'Campus Match',
         partner_photo: partnerPhoto,
+        intent: matchRow.intent || 'dating',
         is_unlocked: true,
       },
       messages: messages.reverse(),
