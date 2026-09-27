@@ -539,7 +539,7 @@ export default function DiscoverPage(): React.ReactNode {
             cursor: 'pointer',
             userSelect: 'none',
           }}
-          onClick={loadDeckAndProfile}
+          onClick={() => loadDeckAndProfile()}
           title="CampusHinge — Tap to refresh deck"
         >
           <div

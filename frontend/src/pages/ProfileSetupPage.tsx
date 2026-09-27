@@ -60,6 +60,7 @@ export default function ProfileSetupPage(): React.ReactNode {
   const [photoError, setPhotoError] = useState<string>('');
   const [interestError, setInterestError] = useState<string>('');
   const [intentNotice, setIntentNotice] = useState<string>('');
+  const [intentOpen, setIntentOpen] = useState<boolean>(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [form, setForm] = useState<ProfileFormState>({
@@ -461,7 +462,7 @@ export default function ProfileSetupPage(): React.ReactNode {
             </label>
           </div>
 
-          {/* Active Campus Intent (Single-Select Radio Cards) */}
+          {/* Active Campus Intent — Collapsible Single-Box Selector */}
           <div style={{ margin: '1.2rem 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -476,55 +477,124 @@ export default function ProfileSetupPage(): React.ReactNode {
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.3' }}>
               Choose your single active mode. Your Discover feed, scoring logic, and like actions will tailor to this intent.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.55rem' }}>
-              {INTENTS.map((intentKey) => {
-                const cfg = INTENT_CONFIGS[intentKey];
-                const isSelected = form.active_intent === intentKey;
-                return (
+
+            {/* Collapsed header — shows active intent */}
+            {(() => {
+              const activeCfg = INTENT_CONFIGS[form.active_intent];
+              return (
+                <div style={{ position: 'relative' }}>
+                  {/* Active intent box (always visible) */}
                   <button
-                    key={intentKey}
                     type="button"
-                    onClick={() => handleIntentChange(intentKey)}
+                    aria-expanded={intentOpen}
+                    onClick={() => setIntentOpen((o) => !o)}
                     style={{
-                      background: isSelected ? cfg.badgeBg : 'rgba(255,255,255,0.03)',
-                      border: `1.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      padding: '0.75rem 0.6rem',
+                      width: '100%',
+                      background: activeCfg.badgeBg,
+                      border: `1.5px solid ${activeCfg.color}`,
+                      borderRadius: intentOpen ? 'var(--radius-md) var(--radius-md) 0 0' : 'var(--radius-md)',
+                      padding: '0.75rem 0.85rem',
                       display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
+                      alignItems: 'center',
+                      gap: '0.75rem',
                       cursor: 'pointer',
                       textAlign: 'left',
-                      transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? `0 0 12px ${cfg.badgeBg}` : 'none',
+                      boxShadow: `0 0 14px ${activeCfg.badgeBg}`,
+                      transition: 'border-radius 0.2s ease, box-shadow 0.2s ease',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.3rem' }}>
-                      <span style={{ fontSize: '1.3rem' }}>{cfg.icon}</span>
-                      <div style={{
-                        width: 15,
-                        height: 15,
-                        borderRadius: '50%',
-                        border: `2px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.3)'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        {isSelected && (
-                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.color }} />
-                        )}
+                    <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{activeCfg.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '700', color: activeCfg.color, marginBottom: '0.1rem' }}>
+                        {activeCfg.label}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.65)', lineHeight: '1.25', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {activeCfg.description}
                       </div>
                     </div>
-                    <span style={{ fontSize: '0.88rem', fontWeight: '700', color: isSelected ? cfg.color : '#fff', marginBottom: '0.15rem' }}>
-                      {cfg.label}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.2' }}>
-                      {cfg.description}
+                    {/* Chevron */}
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        flexShrink: 0,
+                        fontSize: '1rem',
+                        color: activeCfg.color,
+                        transform: intentOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.22s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
                     </span>
                   </button>
-                );
-              })}
-            </div>
+
+                  {/* Expandable options list */}
+                  <div
+                    style={{
+                      overflow: 'hidden',
+                      maxHeight: intentOpen ? `${(INTENTS.length - 1) * 76}px` : '0px',
+                      opacity: intentOpen ? 1 : 0,
+                      transition: 'max-height 0.24s ease, opacity 0.2s ease',
+                      border: intentOpen ? `1.5px solid ${activeCfg.color}` : 'none',
+                      borderTop: 'none',
+                      borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+                    }}
+                  >
+                    {INTENTS.filter((k) => k !== form.active_intent).map((intentKey, idx, arr) => {
+                      const cfg = INTENT_CONFIGS[intentKey];
+                      return (
+                        <button
+                          key={intentKey}
+                          type="button"
+                          tabIndex={intentOpen ? 0 : -1}
+                          onClick={() => {
+                            handleIntentChange(intentKey);
+                            setIntentOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: 'none',
+                            borderTop: '1px solid rgba(255,255,255,0.07)',
+                            borderRadius: idx === arr.length - 1 ? '0 0 var(--radius-md) var(--radius-md)' : '0',
+                            padding: '0.7rem 0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'background 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = `${cfg.badgeBg}`; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                        >
+                          <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{cfg.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '700', color: '#fff', marginBottom: '0.08rem' }}>
+                              {cfg.label}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.2' }}>
+                              {cfg.description}
+                            </div>
+                          </div>
+                          {/* Radio indicator */}
+                          <div style={{
+                            width: 15,
+                            height: 15,
+                            borderRadius: '50%',
+                            border: '2px solid rgba(255,255,255,0.3)',
+                            flexShrink: 0,
+                          }} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Gender & Interested In */}

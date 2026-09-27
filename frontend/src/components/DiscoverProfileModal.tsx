@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { getPhotoUrl } from '../api';
 import { Profile } from '../types';
+import { getIntentConfig, IntentType } from '../constants/intents';
 
 interface DiscoverProfileModalProps {
   profile: Profile | null;
   myInterests?: string[];
+  myActivityTags?: string[];
+  intent?: IntentType;
   canSuperLike?: boolean;
   superLikeAvailable?: boolean;
   superLikeCooldownText?: string;
@@ -15,12 +18,15 @@ interface DiscoverProfileModalProps {
 export default function DiscoverProfileModal({
   profile,
   myInterests = [],
+  myActivityTags = [],
+  intent = 'dating',
   canSuperLike = false,
   superLikeAvailable = true,
   superLikeCooldownText = '',
   onClose,
   onSwipe,
 }: DiscoverProfileModalProps): React.ReactNode {
+  const cfg = getIntentConfig(intent);
   const [photoIndex, setPhotoIndex] = useState<number>(0);
 
   if (!profile) return null;
