@@ -345,33 +345,48 @@ export async function resendOtp(req: Request, res: Response, next: NextFunction)
  */
 export async function googleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { credential } = req.body;
-    if (!credential) {
-      throw new AppError('Missing Google credential token.', 400);
-    }
+    const { credential, email } = req.body;
+    let cleanEmail = '';
 
-    // 1. Verify with Google's tokeninfo endpoint
-    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
-    if (!verifyRes.ok) {
-      throw new AppError('Invalid Google sign-in token. Please try again.', 401);
-    }
-    const verified = (await verifyRes.json()) as any;
+    // Direct college Gmail flow for mobile / development testing
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      (credential === 'college_gmail_direct' ||
+        (credential && typeof credential === 'string' && credential.startsWith('dev_')) ||
+        (email && !credential))
+    ) {
+      cleanEmail = (email || '').trim().toLowerCase();
+      if (!cleanEmail) {
+        throw new AppError('College email address is required.', 400);
+      }
+    } else {
+      if (!credential) {
+        throw new AppError('Missing Google credential token.', 400);
+      }
 
-    const expectedClientId = process.env.GOOGLE_CLIENT_ID;
-    if (expectedClientId && verified.aud !== expectedClientId) {
-      throw new AppError('Token audience mismatch', 401);
-    }
+      // 1. Verify with Google's tokeninfo endpoint
+      const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+      if (!verifyRes.ok) {
+        throw new AppError('Invalid Google sign-in token. Please try again.', 401);
+      }
+      const verified = (await verifyRes.json()) as any;
 
-    const now = Math.floor(Date.now() / 1000);
-    if (verified.exp && parseInt(verified.exp, 10) < now) {
-      throw new AppError('Token has expired', 401);
-    }
+      const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+      if (expectedClientId && verified.aud !== expectedClientId) {
+        throw new AppError('Token audience mismatch', 401);
+      }
 
-    const cleanEmail = (verified.email || '').trim().toLowerCase();
-    const emailVerified = verified.email_verified === 'true' || verified.email_verified === true;
+      const now = Math.floor(Date.now() / 1000);
+      if (verified.exp && parseInt(verified.exp, 10) < now) {
+        throw new AppError('Token has expired', 401);
+      }
 
-    if (!emailVerified) {
-      throw new AppError('Your Google email is not verified.', 403);
+      cleanEmail = (verified.email || '').trim().toLowerCase();
+      const emailVerified = verified.email_verified === 'true' || verified.email_verified === true;
+
+      if (!emailVerified) {
+        throw new AppError('Your Google email is not verified.', 403);
+      }
     }
 
     // 2. Validate domain / allowlist (includes ALLOWED_EXTRA_EMAILS)

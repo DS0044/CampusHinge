@@ -1,0 +1,13 @@
+{
+  "name": "campushinge-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "flutter run",
+    "dev:mobile": "flutter run",
+    "dev:chrome": "flutter run -d chrome",
+    "dev:windows": "flutter run -d windows",
+    "test": "flutter test",
+    "build:apk": "flutter build apk --debug"
+  }
+}
