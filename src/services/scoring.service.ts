@@ -452,10 +452,14 @@ export function scoreCandidateForIntent(
 
   switch (intent) {
     case 'friendship': {
-      // Shared interests count descending, then year proximity
+      // Shared interests (primary) + shared activity tags (secondary) + year proximity
+      const myActivity = parseJsonArray(myProfile.activity_tags);
+      const theirActivity = parseJsonArray(candidate.activity_tags);
+      const sharedActivity = myActivity.filter((t) => theirActivity.includes(t));
       const interestPts = sharedInterests.length * 20;
+      const activityPts = sharedActivity.length * 15; // activity tags boost friendship matching
       const yearPts = Math.round(yearProximityScore * 0.4);
-      return interestPts + yearPts;
+      return interestPts + activityPts + yearPts;
     }
 
     case 'study': {
@@ -477,7 +481,7 @@ export function scoreCandidateForIntent(
     }
 
     case 'networking': {
-      // Branch diversity (different branch > same branch), then shared career-oriented interests
+      // Branch diversity (different branch > same branch), then shared career-oriented interests, then shared activity
       let diversityPts = 20;
       if (myBranch && theirBranch) {
         diversityPts = myBranch.toLowerCase() !== theirBranch.toLowerCase() ? 50 : 15;
@@ -485,9 +489,13 @@ export function scoreCandidateForIntent(
       const sharedCareer = sharedInterests.filter((t) =>
         CAREER_INTERESTS.some((c) => c.toLowerCase() === t.toLowerCase())
       );
+      const myNetActivity = parseJsonArray(myProfile.activity_tags);
+      const theirNetActivity = parseJsonArray(candidate.activity_tags);
+      const sharedNetActivity = myNetActivity.filter((t) => theirNetActivity.includes(t));
       const careerPts = sharedCareer.length * 25;
       const generalInterestPts = sharedInterests.length * 2;
-      return diversityPts + careerPts + generalInterestPts;
+      const activityBonus = sharedNetActivity.length * 10; // shared activities give a bonus in networking too
+      return diversityPts + careerPts + generalInterestPts + activityBonus;
     }
 
     case 'dating':

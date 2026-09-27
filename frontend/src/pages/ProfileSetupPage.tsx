@@ -711,104 +711,121 @@ export default function ProfileSetupPage(): React.ReactNode {
             )}
           </div>
 
-          {/* Activity & Sports Tags Selector */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-            marginTop: '0.6rem',
-            background: form.active_intent === 'activity' ? 'rgba(6, 214, 160, 0.06)' : 'transparent',
-            border: form.active_intent === 'activity' ? '1px solid rgba(6, 214, 160, 0.25)' : 'none',
-            padding: form.active_intent === 'activity' ? '0.8rem' : 0,
-            borderRadius: 'var(--radius-md)',
-            transition: 'all 0.2s ease',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: form.active_intent === 'activity' ? '#06d6a0' : 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                Activity & Sports Tags {form.active_intent === 'activity' ? '• (Active Mode Priority ⚽)' : ''}
-              </span>
-              <span style={{
-                fontSize: '0.78rem',
-                fontWeight: '600',
-                color: form.activity_tags.length >= 2 ? '#06d6a0' : 'var(--text-muted)',
-                background: 'rgba(255,255,255,0.06)',
-                padding: '0.2rem 0.6rem',
-                borderRadius: 'var(--radius-full)'
-              }}>
-                {form.activity_tags.length} selected
-              </span>
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-              Pick activities, sports, and gym interests to match with campus workout and game partners.
-            </p>
+          {/* Activity & Sports Tags — only shown for Activity, Friendship & Networking */}
+          {(['activity', 'friendship', 'networking'] as const).includes(form.active_intent as any) && (() => {
+            const intentColors: Record<string, string> = {
+              activity: '#06d6a0',
+              friendship: '#ffb703',
+              networking: '#a855f7',
+            };
+            const accentColor = intentColors[form.active_intent] || '#06d6a0';
+            const intentLabels: Record<string, string> = {
+              activity: '• (Activity Mode ⚽)',
+              friendship: '• (Friendship Mode 👋)',
+              networking: '• (Networking Mode 🤝)',
+            };
 
-            {/* Picked Activity Pills */}
-            {form.activity_tags.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.2rem' }}>
-                {form.activity_tags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleActivityTag(tag)}
-                    style={{
-                      background: 'rgba(6, 214, 160, 0.22)',
-                      color: '#06d6a0',
-                      border: '1px solid rgba(6, 214, 160, 0.45)',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '0.35rem 0.75rem',
-                      fontSize: '0.8rem',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                    }}
-                  >
-                    <span>{tag}</span>
-                    <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>×</span>
-                  </button>
-                ))}
+            return (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                marginTop: '0.6rem',
+                background: `${accentColor}10`,
+                border: `1px solid ${accentColor}40`,
+                padding: '0.8rem',
+                borderRadius: 'var(--radius-md)',
+                transition: 'all 0.2s ease',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    color: accentColor,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}>
+                    Activity &amp; Sports Tags {intentLabels[form.active_intent] || ''}
+                  </span>
+                  <span style={{
+                    fontSize: '0.78rem',
+                    fontWeight: '600',
+                    color: form.activity_tags.length >= 2 ? accentColor : 'var(--text-muted)',
+                    background: 'rgba(255,255,255,0.06)',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: 'var(--radius-full)'
+                  }}>
+                    {form.activity_tags.length} selected
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Pick activities, sports, and gym interests to match with campus workout and game partners.
+                </p>
+
+                {/* Picked Activity Pills */}
+                {form.activity_tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.2rem' }}>
+                    {form.activity_tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleActivityTag(tag)}
+                        style={{
+                          background: `${accentColor}38`,
+                          color: accentColor,
+                          border: `1px solid ${accentColor}70`,
+                          borderRadius: 'var(--radius-full)',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        <span>{tag}</span>
+                        <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>×</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Activity Chip Grid */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.45rem',
+                  marginTop: '0.3rem',
+                }}>
+                  {PREDEFINED_ACTIVITY_TAGS.map((tag) => {
+                    const isSelected = form.activity_tags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleActivityTag(tag)}
+                        style={{
+                          background: isSelected ? `${accentColor}33` : 'rgba(255,255,255,0.05)',
+                          color: isSelected ? accentColor : 'var(--text-muted)',
+                          border: isSelected ? `1px solid ${accentColor}` : '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: 'var(--radius-full)',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: isSelected ? '600' : '400',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {isSelected ? `✓ ${tag}` : tag}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
+            );
+          })()}
 
-            {/* Activity Chip Grid */}
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.45rem',
-              marginTop: '0.3rem',
-            }}>
-              {PREDEFINED_ACTIVITY_TAGS.map((tag) => {
-                const isSelected = form.activity_tags.includes(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleActivityTag(tag)}
-                    style={{
-                      background: isSelected ? 'rgba(6, 214, 160, 0.2)' : 'rgba(255,255,255,0.05)',
-                      color: isSelected ? '#06d6a0' : 'var(--text-muted)',
-                      border: isSelected ? '1px solid #06d6a0' : '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 'var(--radius-full)',
-                      padding: '0.35rem 0.75rem',
-                      fontSize: '0.8rem',
-                      fontWeight: isSelected ? '600' : '400',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {isSelected ? `✓ ${tag}` : tag}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Email Notifications Toggle */}
           <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', marginTop: '0.4rem' }}>
